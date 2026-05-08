@@ -136,6 +136,9 @@ func maybePromptAISetup(app *App, in *bufio.Reader) {
 	if err != nil || hasAISetup(cfg) {
 		return
 	}
+	if strings.TrimSpace(cfg.APIKey()) == "" {
+		return
+	}
 	fmt.Fprintln(app.Out, "No AI assistant mode configured.")
 	printAIModelPicker(app)
 	fmt.Fprint(app.Out, "Choose provider [1-6, Enter to skip]: ")

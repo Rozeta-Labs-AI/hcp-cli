@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"path/filepath"
@@ -73,5 +74,51 @@ func TestAIStatusReportsConfiguredMode(t *testing.T) {
 	}
 	if got, want := payload["configured"], true; got != want {
 		t.Fatalf("configured = %v, want %t", got, want)
+	}
+}
+
+func TestMaybePromptAISetupSkipsWhenHCPAuthMissing(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", ConfigPath: configPath, Out: &out, Err: &errOut}
+
+	maybePromptAISetup(app, bufio.NewReader(bytes.NewBufferString("1\n")))
+
+	if strings.Contains(out.String(), "AI Assistant Setup") {
+		t.Fatalf("AI setup should not prompt before HCP auth:\n%s", out.String())
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AI.Provider != "" || cfg.AI.Skipped {
+		t.Fatalf("AI config changed before HCP auth: %#v", cfg.AI)
+	}
+}
+
+func TestMaybePromptAISetupPromptsAfterHCPAuthConfigured(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	cfg := config.Default()
+	cfg.Auth.Mode = "api_key"
+	cfg.Auth.APIKey = "test-key"
+	if err := config.Save(configPath, cfg); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", ConfigPath: configPath, Out: &out, Err: &errOut}
+
+	maybePromptAISetup(app, bufio.NewReader(bytes.NewBufferString("1\n")))
+
+	if !strings.Contains(out.String(), "AI Assistant Setup") {
+		t.Fatalf("expected AI setup after HCP auth:\n%s", out.String())
+	}
+	updated, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := updated.AI.Provider, "chatgpt"; got != want {
+		t.Fatalf("provider = %q, want %q", got, want)
 	}
 }

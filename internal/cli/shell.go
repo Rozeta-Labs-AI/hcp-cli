@@ -90,7 +90,7 @@ func printShellBanner(app *App) {
 		}
 	}
 	fmt.Fprintln(app.Out, "Mode: safe by default. Mutating API actions require --plan or --yes.")
-	fmt.Fprintln(app.Out, "Try: setup model | status | api list customers --limit 5 --json | sync --resource customers --json | exit")
+	fmt.Fprintln(app.Out, "Try: onboarding | auth login --api-key <key> | status | api list customers --limit 5 --json | setup model | exit")
 	fmt.Fprintln(app.Out)
 }
 
