@@ -214,6 +214,33 @@ hcp crm
 
 You will see the Housecall Pro Command Center banner, local config/auth status, and an `hcp>` prompt.
 
+On first interactive use, `hcp crm` offers AI Assistant Setup:
+
+```text
+AI Assistant Setup
+
+Choose how you want hcp crm to think:
+  1. ChatGPT subscription via Codex
+  2. OpenRouter API key
+  3. Anthropic API key
+  4. OpenAI API key
+  5. Ollama local model
+  6. Skip for now
+```
+
+You can run the setup picker any time:
+
+```bash
+hcp setup model
+```
+
+Or inside the CRM shell:
+
+```text
+hcp> setup model
+hcp> ai status
+```
+
 Inside the shell, run normal commands without typing the leading `hcp`:
 
 ```text

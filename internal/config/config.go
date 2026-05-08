@@ -22,6 +22,7 @@ type Config struct {
 	BaseURL  string         `json:"base_url"`
 	Auth     AuthConfig     `json:"auth"`
 	Defaults DefaultsConfig `json:"defaults,omitempty"`
+	AI       AIConfig       `json:"ai,omitempty"`
 }
 
 type AuthConfig struct {
@@ -32,6 +33,13 @@ type AuthConfig struct {
 type DefaultsConfig struct {
 	CompanyID   string   `json:"company_id,omitempty"`
 	LocationIDs []string `json:"location_ids,omitempty"`
+}
+
+type AIConfig struct {
+	Provider string `json:"provider,omitempty"`
+	Model    string `json:"model,omitempty"`
+	APIKey   string `json:"api_key,omitempty"`
+	Skipped  bool   `json:"skipped,omitempty"`
 }
 
 func Default() Config {
@@ -136,6 +144,7 @@ func (c Config) AuthMode() string {
 
 func (c Config) Redacted() Config {
 	c.Auth.APIKey = Mask(c.Auth.APIKey)
+	c.AI.APIKey = Mask(c.AI.APIKey)
 	return c
 }
 

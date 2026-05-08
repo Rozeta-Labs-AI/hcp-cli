@@ -135,3 +135,17 @@ func TestShellAIProvidersMentionsBacklogIssues(t *testing.T) {
 		}
 	}
 }
+
+func TestShellSetupModelRoutesToSetupCommand(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	configPath := t.TempDir() + "/config.json"
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: configPath, NoInput: true}
+
+	if err := runShellLine(app, "setup model"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "AI Assistant Setup") {
+		t.Fatalf("expected setup picker:\n%s", out.String())
+	}
+}

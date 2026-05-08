@@ -38,6 +38,8 @@ hcp api examples --area estimates --json
 Use `hcp crm` when the user wants a branded command-center experience. `hcp shell` is the developer-friendly alias for the same mode. Inside the shell, omit the leading `hcp`:
 
 ```text
+hcp> setup model
+hcp> ai status
 hcp> status
 hcp> api get /company --json
 hcp> api list customers --limit 5 --json

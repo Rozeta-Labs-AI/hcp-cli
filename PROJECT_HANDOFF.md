@@ -313,8 +313,16 @@ Branded interactive shell:
 AI integration roadmap:
 
 - `ENG-284`: ChatGPT subscription guidance through Codex in `hcp shell`.
+- `ENG-288`: AI model setup picker for `hcp crm` onboarding.
 - `ENG-285`: Embedded AI provider configuration for OpenRouter, Anthropic, and OpenAI API keys.
 - `ENG-286`: Embedded AI chat loop with guarded `hcp` tool execution.
+
+AI model setup:
+
+- `hcp setup model` shows a provider picker.
+- First interactive `hcp crm` run offers setup if no AI assistant preference is configured.
+- Provider choices are ChatGPT subscription via Codex, OpenRouter API key, Anthropic API key, OpenAI API key, Ollama local model, and skip.
+- `hcp ai status` reports configured mode without exposing secrets.
 
 Cleanup:
 

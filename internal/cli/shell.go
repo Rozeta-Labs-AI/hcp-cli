@@ -34,16 +34,26 @@ func runShell(app *App, in io.Reader) error {
 	if !app.Quiet {
 		printShellBanner(app)
 	}
-	scanner := bufio.NewScanner(in)
+	reader := bufio.NewReader(in)
+	if isTerminalReader(in) {
+		maybePromptAISetup(app, reader)
+	}
 	for {
 		if !app.Quiet {
 			fmt.Fprint(app.Out, "hcp> ")
 		}
-		if !scanner.Scan() {
+		line, err := reader.ReadString('\n')
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if err == io.EOF && line == "" {
 			break
 		}
-		line := strings.TrimSpace(scanner.Text())
+		line = strings.TrimSpace(line)
 		if line == "" {
+			if err == io.EOF {
+				break
+			}
 			continue
 		}
 		if shouldExitShell(line) {
@@ -58,9 +68,9 @@ func runShell(app *App, in io.Reader) error {
 		if err := runShellLine(app, line); err != nil {
 			fmt.Fprintln(app.Err, err)
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		return err
+		if err == io.EOF {
+			break
+		}
 	}
 	return nil
 }
@@ -80,7 +90,7 @@ func printShellBanner(app *App) {
 		}
 	}
 	fmt.Fprintln(app.Out, "Mode: safe by default. Mutating API actions require --plan or --yes.")
-	fmt.Fprintln(app.Out, "Try: status | api list customers --limit 5 --json | sync --resource customers --json | exit")
+	fmt.Fprintln(app.Out, "Try: setup model | status | api list customers --limit 5 --json | sync --resource customers --json | exit")
 	fmt.Fprintln(app.Out)
 }
 
@@ -192,7 +202,7 @@ func isShellAICommand(args []string) bool {
 		return true
 	}
 	second := strings.ToLower(args[1])
-	return second == "chatgpt" || second == "codex" || second == "openai" || second == "providers" || second == "status"
+	return second == "chatgpt" || second == "codex" || second == "openai" || second == "providers"
 }
 
 func printShellAIGuide(app *App, args []string) {
@@ -227,8 +237,8 @@ func printShellAIGuide(app *App, args []string) {
 
 func isKnownShellCommand(command string) bool {
 	switch command {
-	case "api", "auth", "brief", "cash", "completion", "customers", "estimates", "funnel",
-		"help", "invoices", "jobs", "leads", "marketing", "mcp", "report", "sync", "tech":
+	case "ai", "api", "auth", "brief", "cash", "completion", "customers", "estimates", "funnel",
+		"help", "invoices", "jobs", "leads", "marketing", "mcp", "report", "setup", "sync", "tech":
 		return true
 	default:
 		return false
