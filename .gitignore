@@ -1,0 +1,11 @@
+/bin/
+/hcp
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+.hcp-*.json
+.hcp*.json
+.firecrawl/
+.DS_Store
