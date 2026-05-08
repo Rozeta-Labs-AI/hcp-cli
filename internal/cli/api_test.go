@@ -82,6 +82,44 @@ func TestBuildAPIPlanMarksOperationalWrites(t *testing.T) {
 	if !requiresConfirm(plan.Risk) {
 		t.Fatal("operational writes should require confirmation")
 	}
+	if got, want := plan.Safety.BlastRadius, "operational"; got != want {
+		t.Fatalf("blast radius = %q, want %q", got, want)
+	}
+	if !strings.Contains(plan.Safety.Friction, "--confirm") {
+		t.Fatalf("friction = %q, want confirmation guidance", plan.Safety.Friction)
+	}
+}
+
+func TestBuildAPIPlanIncludesSafetyMetadata(t *testing.T) {
+	cases := []struct {
+		name              string
+		method            string
+		path              string
+		wantBlastRadius   string
+		wantExternal      bool
+		wantReversibility string
+	}{
+		{"read", "GET", "/customers", "read", false, "no mutation"},
+		{"customer write", "POST", "/customers", "medium", true, "often editable, delete may be unsupported"},
+		{"webhook write", "POST", "/webhooks/subscription", "catastrophic", true, "manual reconfiguration may be required"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := buildAPIPlan("", tc.method, tc.path, `{}`, nil, nil, nil, "", "", 0, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := plan.Safety.BlastRadius; got != tc.wantBlastRadius {
+				t.Fatalf("blast radius = %q, want %q", got, tc.wantBlastRadius)
+			}
+			if got := plan.Safety.ExternalVisible; got != tc.wantExternal {
+				t.Fatalf("external visible = %t, want %t", got, tc.wantExternal)
+			}
+			if got := plan.Safety.Reversibility; got != tc.wantReversibility {
+				t.Fatalf("reversibility = %q, want %q", got, tc.wantReversibility)
+			}
+		})
+	}
 }
 
 func TestAddVerificationPlan(t *testing.T) {

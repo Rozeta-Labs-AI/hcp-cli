@@ -26,7 +26,16 @@ type apiPlan struct {
 	Files        []apiPlanFile  `json:"files,omitempty"`
 	Mutable      bool           `json:"mutable"`
 	Risk         string         `json:"risk"`
+	Safety       apiSafety      `json:"safety"`
 	Verification *apiVerifyPlan `json:"verification,omitempty"`
+}
+
+type apiSafety struct {
+	BlastRadius     string `json:"blast_radius"`
+	WorstCase       string `json:"worst_case"`
+	Reversibility   string `json:"reversibility"`
+	ExternalVisible bool   `json:"external_visible"`
+	Friction        string `json:"friction"`
 }
 
 type apiVerifyPlan struct {
@@ -114,6 +123,7 @@ func newAPICommand(app *App) *cobra.Command {
 				planOnly = true
 			}
 			if planOnly {
+				_ = app.writeAudit(apiAuditRecord("plan", plan, "planned", nil, nil))
 				return writeAPIPlan(app, plan)
 			}
 			if plan.Mutable && !yes {
@@ -135,12 +145,15 @@ func newAPICommand(app *App) *cobra.Command {
 				raw, err = client.DoRaw(commandContext(cmd), plan.Method, plan.Path, valuesFromPlan(plan.Query), plan.Body)
 			}
 			if err != nil {
+				_ = app.writeAudit(apiAuditRecord("execute", plan, "failed", nil, err))
 				return errorf(exitAPI, "%w", err)
 			}
 			verification, err := runVerification(commandContext(cmd), client, plan.Verification)
 			if err != nil {
+				_ = app.writeAudit(apiAuditRecord("execute", plan, "verification_failed", verification, err))
 				return errorf(exitAPI, "%w", err)
 			}
+			_ = app.writeAudit(apiAuditRecord("execute", plan, "success", verification, nil))
 
 			if app.JSON {
 				var value any
@@ -522,6 +535,7 @@ func buildAPIPlan(request string, explicitMethod string, explicitPath string, ra
 		Files:   files,
 		Mutable: method != http.MethodGet,
 		Risk:    riskFor(method, path),
+		Safety:  safetyFor(method, path),
 	}, nil
 }
 
@@ -664,6 +678,8 @@ func writeAPIPlan(app *App, plan apiPlan) error {
 			fmt.Fprintf(app.Out, " --confirm %s", destructiveConfirmToken(plan))
 		}
 		fmt.Fprintln(app.Out)
+		fmt.Fprintf(app.Out, "blast_radius=%s reversibility=%s external_visible=%t\n", plan.Safety.BlastRadius, plan.Safety.Reversibility, plan.Safety.ExternalVisible)
+		fmt.Fprintf(app.Out, "worst_case=%s\n", plan.Safety.WorstCase)
 	}
 	if plan.Verification != nil {
 		fmt.Fprintf(app.Out, "verify=%s %s\n", plan.Verification.Method, plan.Verification.Path)
@@ -672,6 +688,55 @@ func writeAPIPlan(app *App, plan apiPlan) error {
 		}
 	}
 	return nil
+}
+
+func safetyFor(method string, path string) apiSafety {
+	risk := riskFor(method, path)
+	lower := strings.ToLower(path)
+	if method == http.MethodGet {
+		return apiSafety{
+			BlastRadius:   "read",
+			WorstCase:     "Sensitive business data may be exposed to the local caller or AI transcript.",
+			Reversibility: "no mutation",
+			Friction:      "allowed",
+		}
+	}
+	safety := apiSafety{
+		BlastRadius:     "medium",
+		WorstCase:       "Creates or changes Housecall Pro records that staff may see or rely on.",
+		Reversibility:   "depends on Housecall Pro endpoint support",
+		ExternalVisible: true,
+		Friction:        "requires --yes",
+	}
+	if strings.Contains(lower, "/customers") || strings.Contains(lower, "/leads") || strings.Contains(lower, "/lead_sources") || strings.Contains(lower, "/tags") {
+		safety.BlastRadius = "medium"
+		safety.WorstCase = "Creates or changes CRM records; cleanup may be unsupported for some resources."
+		safety.Reversibility = "often editable, delete may be unsupported"
+	}
+	if strings.Contains(lower, "/jobs") || strings.Contains(lower, "/estimates") || strings.Contains(lower, "/invoices") {
+		safety.BlastRadius = "high"
+		safety.WorstCase = "Changes operational or revenue records that can affect scheduling, fulfillment, invoices, or customer communication."
+		safety.Reversibility = "may require manual HCP cleanup"
+	}
+	if risk == "operational" {
+		safety.BlastRadius = "operational"
+		safety.WorstCase = "Changes business operations such as availability, dispatch, pipeline, or company settings; failed or wrong changes can affect booking and staff workflows."
+		safety.Reversibility = "verify by read-back; may require HCP UI correction"
+		safety.Friction = "requires --yes and --confirm"
+	}
+	if risk == "destructive" {
+		safety.BlastRadius = "destructive"
+		safety.WorstCase = "Deletes, disables, declines, locks, or removes API-managed state; data or workflow impact may be unrecoverable."
+		safety.Reversibility = "assume not reversible unless HCP explicitly provides undo"
+		safety.Friction = "requires --yes and --confirm"
+	}
+	if strings.Contains(lower, "/webhooks/subscription") || strings.Contains(lower, "/application/disable") {
+		safety.BlastRadius = "catastrophic"
+		safety.WorstCase = "Can break integrations or disconnect application behavior for the account."
+		safety.Reversibility = "manual reconfiguration may be required"
+		safety.Friction = "requires --yes and --confirm"
+	}
+	return safety
 }
 
 func riskFor(method string, path string) string {

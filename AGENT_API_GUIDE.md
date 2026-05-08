@@ -10,6 +10,8 @@ This guide is for Codex, Claude Code, and other coding agents operating the loca
 - Use explicit `--method` and `--path` when natural language is ambiguous.
 - Operational and destructive actions need both `--yes` and the exact `--confirm <method:path>` token shown by the plan.
 - For operational settings, use read-back verification and do not claim success unless the verification passes.
+- Treat the plan's `safety` object as part of the review. It summarizes blast radius, worst case, reversibility, external visibility, and required friction.
+- After writes or failed writes, use `hcp audit list` and `hcp audit show <id>` when the user asks what happened.
 
 ## Discover API Actions
 

@@ -296,6 +296,17 @@ Operational write hardening:
 - Operational writes require `--yes` plus the exact `--confirm <method:path>` token, like destructive writes.
 - `hcp api` supports read-back verification with `--verify-get`, `--verify-query`, and `--verify-contains`.
 - Schedule availability writes should not be considered complete unless `GET /company/schedule_availability` confirms the requested windows.
+- API plans include blast-radius metadata: worst case, reversibility, external visibility, and required friction.
+- `hcp audit list` and `hcp audit show <id>` inspect the local redacted JSONL audit trail for planned, successful, failed, and verification-failed API activity.
+
+Safety backlog:
+
+- `ENG-289`: API action blast-radius registry.
+- `ENG-290`: Local audit log for hcp actions.
+- `ENG-291`: Compound-action safety detection.
+- `ENG-292`: Prompt-injection safeguards for HCP-sourced text.
+- `ENG-293`: Reversible defaults and unsupported hard-delete blocking.
+- `ENG-294`: Session safety policy for AI-driven execution.
 
 Branded interactive shell:
 

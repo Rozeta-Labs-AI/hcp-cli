@@ -189,6 +189,8 @@ Plan a write action:
 hcp api create customer --body '{"first_name":"Ada","last_name":"Lovelace"}' --plan
 ```
 
+Plans include a safety summary: blast radius, worst case, reversibility, external visibility, and required friction.
+
 Execute a write action only after reviewing the plan:
 
 ```bash
@@ -403,10 +405,18 @@ The CLI is designed for AI-agent use, so write operations are guarded:
 - `GET` requests can run directly.
 - `POST`, `PUT`, `PATCH`, and `DELETE` require `--plan`, `--dry-run`, or `--yes`.
 - Operational and destructive actions require `--yes` plus an exact `--confirm <method:path>` token.
-- Plans show method, path, query, body, mutability, risk label, and files.
+- Plans show method, path, query, body, mutability, risk label, files, and blast-radius metadata.
 - Use `--verify-get` and `--verify-contains` for writes where Housecall Pro may return a success-shaped response before the setting actually persists.
+- Plans and execution attempts are written to a local redacted audit log next to the user's config file.
 
 Operational writes include company schedule availability, company franchise info, pipeline statuses, app enable, dispatch, and job or estimate schedule changes.
+
+Inspect the local audit trail:
+
+```bash
+hcp audit list
+hcp audit show aud_1234abcd --json
+```
 
 Example read-back verification:
 
