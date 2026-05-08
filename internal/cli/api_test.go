@@ -210,6 +210,7 @@ func TestBuildAPIPlanCoversEndpointFamilies(t *testing.T) {
 		{"convert lead", []string{"id=lead_123"}, "/leads/lead_123/convert"},
 		{"list lead line items", []string{"lead_id=lead_123"}, "/leads/lead_123/line_items"},
 		{"create lead source", nil, "/lead_sources"},
+		{"create lead_source", nil, "/lead_sources"},
 		{"create job type", nil, "/job_fields/job_types"},
 		{"invoice preview", []string{"uuid=inv_123"}, "/api/invoices/inv_123/preview"},
 		{"delete price form", nil, "/api/price_book/price_forms"},
@@ -245,6 +246,22 @@ func TestParseOpenAPICatalogFromSnapshot(t *testing.T) {
 	assertCatalogHas(t, ops, "GET", "/customers")
 	assertCatalogHas(t, ops, "POST", "/jobs/{job_id}/appointments")
 	assertCatalogHas(t, ops, "DELETE", "/api/price_book/materials/{uuid}")
+}
+
+func TestOpenAPICatalogUsesEmbeddedSnapshotByDefault(t *testing.T) {
+	reader, closeReader, err := openAPISnapshotReader("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeReader()
+	ops, err := parseOpenAPICatalog(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(ops), 95; got != want {
+		t.Fatalf("operation count = %d, want %d", got, want)
+	}
+	assertCatalogHas(t, ops, "POST", "/lead_sources")
 }
 
 func assertCatalogHas(t *testing.T, ops []apiCatalogOperation, method string, path string) {

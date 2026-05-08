@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -354,20 +355,13 @@ func newAPICatalogCommand(app *App) *cobra.Command {
 		Use:   "catalog",
 		Short: "List documented Housecall Pro API operations",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := strings.TrimSpace(specPath)
-			if path == "" {
-				path = "HOUSECALL_PRO_OPENAPI_SNAPSHOT.yaml"
-			}
-			file, err := os.Open(path)
-			if err != nil && !filepath.IsAbs(path) {
-				file, err = os.Open(filepath.Join("..", "..", path))
-			}
+			reader, closeReader, err := openAPISnapshotReader(specPath)
 			if err != nil {
-				return errorf(exitConfig, "open API snapshot: %w", err)
+				return errorf(exitConfig, "%w", err)
 			}
-			defer file.Close()
+			defer closeReader()
 
-			ops, err := parseOpenAPICatalog(file)
+			ops, err := parseOpenAPICatalog(reader)
 			if err != nil {
 				return errorf(exitConfig, "%w", err)
 			}
@@ -390,6 +384,21 @@ func newAPICatalogCommand(app *App) *cobra.Command {
 	cmd.Flags().StringVar(&specPath, "spec", "", "OpenAPI snapshot path")
 	cmd.Flags().StringVar(&area, "area", "", "filter by API area, for example jobs, estimates, price_book")
 	return cmd
+}
+
+func openAPISnapshotReader(path string) (io.Reader, func(), error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return bytes.NewReader(embeddedOpenAPISnapshot), func() {}, nil
+	}
+	file, err := os.Open(path)
+	if err != nil && !filepath.IsAbs(path) {
+		file, err = os.Open(filepath.Join("..", "..", path))
+	}
+	if err != nil {
+		return nil, func() {}, fmt.Errorf("open API snapshot: %w", err)
+	}
+	return file, func() { _ = file.Close() }, nil
 }
 
 func parseOpenAPICatalog(r io.Reader) ([]apiCatalogOperation, error) {
@@ -900,7 +909,7 @@ func pathFromWords(request string) string {
 	if path := firstPathToken(request); path != "" {
 		return path
 	}
-	lower := strings.ToLower(request)
+	lower := strings.ReplaceAll(strings.ToLower(request), "_", " ")
 
 	if path := specialPathFromWords(lower); path != "" {
 		return path
