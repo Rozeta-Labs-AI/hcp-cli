@@ -31,11 +31,12 @@ type apiPlan struct {
 }
 
 type apiSafety struct {
-	BlastRadius     string `json:"blast_radius"`
-	WorstCase       string `json:"worst_case"`
-	Reversibility   string `json:"reversibility"`
-	ExternalVisible bool   `json:"external_visible"`
-	Friction        string `json:"friction"`
+	BlastRadius     string   `json:"blast_radius"`
+	WorstCase       string   `json:"worst_case"`
+	Reversibility   string   `json:"reversibility"`
+	ExternalVisible bool     `json:"external_visible"`
+	Friction        string   `json:"friction"`
+	Warnings        []string `json:"warnings,omitempty"`
 }
 
 type apiVerifyPlan struct {
@@ -99,6 +100,9 @@ func newAPICommand(app *App) *cobra.Command {
 	var verifyGet string
 	var verifyQueryPairs []string
 	var verifyContains []string
+	var allowHardDelete bool
+	var allowUntrustedText bool
+	var confirmCompound string
 
 	cmd := &cobra.Command{
 		Use:   "api [natural language request]",
@@ -118,6 +122,8 @@ func newAPICommand(app *App) *cobra.Command {
 			if err := addVerificationPlan(&plan, verifyGet, verifyQueryPairs, verifyContains); err != nil {
 				return errorf(exitUsage, "%w", err)
 			}
+			findings := safetyFindingsForPlan(request, plan)
+			plan.Safety.Warnings = append(plan.Safety.Warnings, findings.Warnings...)
 
 			if dryRun {
 				planOnly = true
@@ -126,11 +132,20 @@ func newAPICommand(app *App) *cobra.Command {
 				_ = app.writeAudit(apiAuditRecord("plan", plan, "planned", nil, nil))
 				return writeAPIPlan(app, plan)
 			}
+			if findings.Compound && confirmCompound != compoundConfirmToken(plan) {
+				return errorf(exitUsage, "refusing compound mutating request without --confirm-compound %s; split this into separate reviewed plans", compoundConfirmToken(plan))
+			}
+			if findings.PromptInjection && plan.Mutable && !allowUntrustedText {
+				return errorf(exitUsage, "refusing mutating action containing prompt-injection-like text; use a fresh explicit user instruction or pass --allow-untrusted-text after review")
+			}
 			if plan.Mutable && !yes {
 				return errorf(exitUsage, "refusing to run %s %s without --yes; inspect first with --plan", plan.Method, plan.Path)
 			}
 			if requiresConfirm(plan.Risk) && confirm != destructiveConfirmToken(plan) {
 				return errorf(exitUsage, "refusing %s %s %s without --confirm %s", plan.Risk, plan.Method, plan.Path, destructiveConfirmToken(plan))
+			}
+			if requiresHardDeleteOverride(plan) && !allowHardDelete {
+				return errorf(exitUsage, "refusing hard delete by default; prefer a reversible action when available, or rerun with --allow-hard-delete after confirming there is no safer cleanup path")
 			}
 
 			client, _, _, err := app.newClient()
@@ -164,6 +179,12 @@ func newAPICommand(app *App) *cobra.Command {
 					"request":  plan,
 					"response": value,
 				}
+				if responseSafety := responseSafetyFindings(raw); len(responseSafety) > 0 {
+					output["response_safety"] = map[string]any{
+						"untrusted_hcp_text": true,
+						"warnings":           responseSafety,
+					}
+				}
 				if verification != nil {
 					output["verification"] = verification
 				}
@@ -171,6 +192,9 @@ func newAPICommand(app *App) *cobra.Command {
 			}
 
 			fmt.Fprintf(app.Out, "%s %s\n", plan.Method, plan.Path)
+			for _, warning := range responseSafetyFindings(raw) {
+				fmt.Fprintf(app.Out, "warning: %s\n", warning)
+			}
 			if err := prettyPrintRawJSON(app.Out, raw); err != nil {
 				return err
 			}
@@ -196,6 +220,9 @@ func newAPICommand(app *App) *cobra.Command {
 	cmd.Flags().StringVar(&verifyGet, "verify-get", "", "GET path to read back after a successful mutating request")
 	cmd.Flags().StringArrayVar(&verifyQueryPairs, "verify-query", nil, "query parameter for --verify-get as key=value; repeat for multiple values")
 	cmd.Flags().StringArrayVar(&verifyContains, "verify-contains", nil, "substring that must appear in the verification response; repeat for multiple checks")
+	cmd.Flags().BoolVar(&allowHardDelete, "allow-hard-delete", false, "allow hard DELETE requests after confirmation when no reversible action is available")
+	cmd.Flags().BoolVar(&allowUntrustedText, "allow-untrusted-text", false, "allow mutating requests that contain prompt-injection-like untrusted text after review")
+	cmd.Flags().StringVar(&confirmCompound, "confirm-compound", "", "confirmation token required for compound mutating natural-language requests")
 	cmd.Flags().IntVar(&limit, "limit", 0, "page_size alias for natural-language list requests")
 	cmd.Flags().IntVar(&page, "page", 0, "page query parameter for natural-language list requests")
 

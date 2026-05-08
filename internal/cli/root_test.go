@@ -36,6 +36,7 @@ func TestRootHelpRegistersCommandGroups(t *testing.T) {
 		"marketing",
 		"mcp",
 		"ai",
+		"safety",
 		"setup",
 		"crm",
 		"shell",

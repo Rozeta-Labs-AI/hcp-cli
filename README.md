@@ -408,6 +408,10 @@ The CLI is designed for AI-agent use, so write operations are guarded:
 - Plans show method, path, query, body, mutability, risk label, files, and blast-radius metadata.
 - Use `--verify-get` and `--verify-contains` for writes where Housecall Pro may return a success-shaped response before the setting actually persists.
 - Plans and execution attempts are written to a local redacted audit log next to the user's config file.
+- Compound mutating natural-language requests are blocked unless split into separate plans or confirmed with `--confirm-compound`.
+- Prompt-injection-like text in mutating requests is blocked unless reviewed and explicitly allowed with `--allow-untrusted-text`.
+- Hard `DELETE` requests require `--allow-hard-delete` in addition to normal destructive confirmation.
+- `hcp crm` tracks mutating, operational, and destructive actions inside the shell session and blocks repeated high-risk sequences.
 
 Operational writes include company schedule availability, company franchise info, pipeline statuses, app enable, dispatch, and job or estimate schedule changes.
 
@@ -416,6 +420,12 @@ Inspect the local audit trail:
 ```bash
 hcp audit list
 hcp audit show aud_1234abcd --json
+```
+
+Inspect the current shell-session safety policy:
+
+```bash
+hcp safety status
 ```
 
 Example read-back verification:

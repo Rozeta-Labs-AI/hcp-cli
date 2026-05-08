@@ -298,6 +298,12 @@ Operational write hardening:
 - Schedule availability writes should not be considered complete unless `GET /company/schedule_availability` confirms the requested windows.
 - API plans include blast-radius metadata: worst case, reversibility, external visibility, and required friction.
 - `hcp audit list` and `hcp audit show <id>` inspect the local redacted JSONL audit trail for planned, successful, failed, and verification-failed API activity.
+- Compound mutating natural-language requests are blocked unless split into separate plans or confirmed with `--confirm-compound`.
+- Mutating requests with prompt-injection-like text are blocked unless explicitly reviewed with `--allow-untrusted-text`.
+- HCP response text is marked with `response_safety` warnings when it contains prompt-injection-like strings.
+- Hard `DELETE` requests require `--allow-hard-delete` in addition to normal destructive confirmation.
+- `hcp safety status` reports the shell-session safety policy and counters.
+- `hcp crm` tracks mutating, operational, and destructive `--yes` actions and blocks repeated destructive/operational sequences above policy limits.
 
 Safety backlog:
 

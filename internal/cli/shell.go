@@ -134,15 +134,23 @@ func runShellLine(app *App, line string) error {
 	}
 	if args[0] == "status" {
 		args = []string{"auth", "doctor", "--endpoint", "/company"}
+	} else if len(args) >= 2 && args[0] == "safety" && args[1] == "status" {
+		return newSafetyStatusCommand(app).Execute()
 	} else if !isKnownShellCommand(args[0]) {
 		if !isActionableShellLine(line) {
 			printShellHelp(app)
 			return nil
 		}
+		if isCompoundMutatingText(line) {
+			return errorf(exitUsage, "compound mutating request detected; split it into separate reviewed plans")
+		}
 		args = append([]string{"api"}, args...)
 		if isLikelyMutatingShellLine(line) && !hasShellFlag(args, "--plan") && !hasShellFlag(args, "--dry-run") && !hasShellFlag(args, "--yes") {
 			args = append(args, "--plan")
 		}
+	}
+	if err := recordShellSafetyAttempt(app, args); err != nil {
+		return err
 	}
 	var out bytes.Buffer
 	child := newRootCommand(app.Version, &out, app.Err)
@@ -238,7 +246,7 @@ func printShellAIGuide(app *App, args []string) {
 func isKnownShellCommand(command string) bool {
 	switch command {
 	case "ai", "api", "auth", "brief", "cash", "completion", "customers", "estimates", "funnel",
-		"help", "invoices", "jobs", "leads", "marketing", "mcp", "report", "setup", "sync", "tech":
+		"help", "invoices", "jobs", "leads", "marketing", "mcp", "report", "safety", "setup", "sync", "tech":
 		return true
 	default:
 		return false

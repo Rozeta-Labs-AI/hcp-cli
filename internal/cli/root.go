@@ -22,6 +22,7 @@ type App struct {
 	NoInput    bool
 	Out        io.Writer
 	Err        io.Writer
+	Safety     *safetySession
 }
 
 func Execute(version string) error {
@@ -74,6 +75,7 @@ func newRootCommand(version string, out io.Writer, errOut io.Writer) *cobra.Comm
 	root.AddCommand(newSetupCommand(app))
 	root.AddCommand(newAICommand(app))
 	root.AddCommand(newAuditCommand(app))
+	root.AddCommand(newSafetyCommand(app))
 	root.AddCommand(newCRMCommand(app))
 	root.AddCommand(newShellCommand(app))
 
