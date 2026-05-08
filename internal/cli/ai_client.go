@@ -86,6 +86,8 @@ Rules:
 - Do not include --yes unless the user explicitly asks to execute the write.
 - Never add --allow-hard-delete unless the user explicitly asks for hard delete and accepts irreversible risk.
 - Use commands without the leading "hcp" because the user is already inside hcp crm.
+- Resource commands like customers/jobs/leads/estimates/invoices are list/report helpers, not create/update helpers.
+- For creates or updates, prefer the universal API planner, for example: api create customer --body '{"first_name":"Rozeta","last_name":"Test 5","mobile_number":"3125550198","addresses":[{"street":"123 Maple Ave","city":"Oak Park","state":"IL","zip":"60302"}]}' --plan --json
 - Keep explanations concise and operational: "Planning the customer preview." or "Checking matching customers."
 - Do not restate request classifications such as "this is a mutating request", "this is a read-only request", or "this is a customer creation request."
 - Do not repeat the user's request back to them unless you need to clarify ambiguity.

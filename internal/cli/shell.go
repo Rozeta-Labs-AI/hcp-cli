@@ -301,6 +301,11 @@ func runShellAI(app *App, line string) (bool, error) {
 			return true, fmt.Errorf("%v; retry failed: %w", err, retryErr)
 		}
 		_, retryErr = runAIDecision(app, retry)
+		if retryErr != nil {
+			printAIStage(app, fmt.Sprintf("Stopped: the corrected command also failed: %v", retryErr))
+			printAIStage(app, "No write was executed unless you separately confirmed a command with --yes.")
+			return true, nil
+		}
 		return true, retryErr
 	}
 	return true, nil

@@ -238,6 +238,34 @@ func TestShellAIRetriesAfterBadCommand(t *testing.T) {
 	}
 }
 
+func TestShellAIStopsClearlyAfterRetryCommandFails(t *testing.T) {
+	previous := callAI
+	defer func() { callAI = previous }()
+	callAI = func(ctx context.Context, cfg config.Config, userRequest string) (aiDecision, error) {
+		return aiDecision{Type: "command", Command: "customers create --bad-flag", Explanation: "Planning the customer preview."}, nil
+	}
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	cfg := config.Default()
+	cfg.AI.Provider = "chatgpt"
+	cfg.AI.Model = "codex-chatgpt"
+	if err := config.Save(configPath, cfg); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: false, ConfigPath: configPath}
+
+	if err := runShellLine(app, "create customer"); err != nil {
+		t.Fatal(err)
+	}
+	output := out.String()
+	for _, want := range []string{"... Stopped: the corrected command also failed:", "... No write was executed unless you separately confirmed a command with --yes."} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q:\n%s", want, output)
+		}
+	}
+}
+
 func TestNormalizeAICommandAddsPlanToMutatingCommand(t *testing.T) {
 	args := normalizeAICommandArgs([]string{"api", "create", "lead", "source", "--body", `{"name":"Test"}`})
 	if !hasShellFlag(args, "--plan") {
