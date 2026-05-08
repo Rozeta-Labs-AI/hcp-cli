@@ -1,6 +1,6 @@
 # Housecall Pro CLI (`hcp`)
 
-`hcp` is a command-line interface for Housecall Pro built for operators, developers, and AI coding agents. It provides authenticated access to the Housecall Pro API, a local SQLite mirror for reporting, and a generic API action layer that lets tools like Codex or Claude Code safely perform Housecall Pro actions from natural-language instructions.
+`hcp` is a command-line interface for Housecall Pro built for operators, developers, and AI agents. It is best used as a clean local toolbelt that Codex, Hermes, Claude Code, and other terminal-capable agents can call while they handle planning, retry, and conversation.
 
 The project currently exposes the full documented API surface from the included Housecall Pro OpenAPI snapshot:
 
@@ -26,12 +26,21 @@ Housecall Pro has a broad API. This CLI gives a human or AI agent a single local
 - Query local data for reports and operational summaries.
 - Use explicit method/path fallback for any API operation the natural-language planner cannot infer.
 
-The intended agent workflow is:
+The recommended workflow is external-agent first:
+
+```text
+Codex / Hermes / Claude Code / other agent
+        -> hcp CLI
+        -> Housecall Pro API
+```
+
+The intended agent contract is:
 
 1. Use `hcp api catalog --json` to discover the exact API action.
 2. Use `hcp api examples --json` for command recipes.
 3. Use `--plan` for any write action.
 4. Execute only after the user explicitly requests the action.
+5. Use `--json` and read-back commands so the agent can verify results.
 
 ## Install For End Users
 
@@ -41,8 +50,9 @@ The intended agent workflow is:
 go install github.com/Rozeta-Labs-AI/hcp-cli/cmd/hcp@latest
 export PATH="$PATH:$(go env GOPATH)/bin"
 hcp account auth --api-key <your-housecall-pro-api-key>
-hcp setup model
-hcp crm
+hcp doctor
+hcp api catalog --json
+hcp api examples --json
 ```
 
 Plain English: Go is just the installer for this CLI. It gives you the global `hcp` command, similar to how npm installs Node-based CLIs.
@@ -52,6 +62,16 @@ After the first install, update with:
 ```bash
 hcp update
 ```
+
+Then open Codex, Hermes, Claude Code, or another terminal-capable agent and ask it to use `hcp`.
+
+Example agent prompt:
+
+```text
+Use the hcp CLI to add Angi as a lead source. Plan first, then execute after I confirm, and verify it exists afterward.
+```
+
+Embedded AI inside `hcp crm` is available as an experimental convenience, but the most reliable architecture is still an external agent using `hcp` as its tool layer.
 
 ### Option 1: Install From Source With Go
 
@@ -241,7 +261,9 @@ hcp crm
 
 You will see the Housecall Pro Command Center banner, local config/auth status, and an `hcp>` prompt.
 
-After HCP auth is configured, `hcp crm` can use an embedded model in the same terminal session. Run `setup model` to choose the model path:
+The shell is useful for direct `hcp` commands. Embedded AI inside the shell is experimental; prefer Codex/Hermes/Claude Code using `hcp` directly for serious agent work.
+
+To try experimental embedded AI after HCP auth is configured, run `setup model`:
 
 ```text
 AI Assistant Setup
@@ -251,8 +273,7 @@ Choose how you want hcp crm to think:
   2. OpenRouter API key
   3. Anthropic API key
   4. OpenAI API key
-  5. Ollama local model
-  6. Skip for now
+  5. Skip for now
 ```
 
 You can run the setup picker any time:
@@ -289,7 +310,7 @@ hcp> customers list --limit 5 --json
 hcp> exit
 ```
 
-With an AI provider configured, conversational lines are sent to the embedded model. The model returns either a plain answer or a proposed `hcp` command, and proposed commands still execute through the existing safety gates.
+With an AI provider configured, conversational lines are sent to the experimental embedded model. For production-like agent workflows, use an external agent and let it call `hcp` commands directly.
 
 The shell also accepts simple natural-language-style API lines. Unknown mutating requests default to a plan instead of execution:
 
@@ -300,7 +321,7 @@ hcp> create lead source --body '{"name":"Spring Mailer"}'
 
 To execute a planned mutating action, run the explicit `api ... --yes` command after reviewing the plan.
 
-### ChatGPT Subscription Through Codex
+### Experimental ChatGPT Subscription Through Codex
 
 ChatGPT Plus/Pro subscription access is not configured in `hcp` as a raw API key. hcp uses the local Codex auth/session bridge inside `hcp crm`:
 

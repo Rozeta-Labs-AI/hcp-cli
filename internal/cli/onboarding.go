@@ -25,8 +25,10 @@ func newOnboardingCommand(app *App) *cobra.Command {
 						{"name": "path", "command": `export PATH="$PATH:$(go env GOPATH)/bin"`},
 						{"name": "auth", "command": "hcp account auth --api-key <your-housecall-pro-api-key>"},
 						{"name": "verify", "command": "hcp doctor"},
-						{"name": "model", "command": "hcp setup model"},
-						{"name": "open_crm", "command": "hcp crm"},
+						{"name": "catalog", "command": "hcp api catalog --json"},
+						{"name": "examples", "command": "hcp api examples --json"},
+						{"name": "agent_prompt", "command": "Ask Codex/Hermes/Claude Code to use hcp for Housecall Pro tasks"},
+						{"name": "experimental_embedded_ai", "command": "hcp setup model && hcp crm"},
 						{"name": "future_updates", "command": "hcp update"},
 					},
 				})
@@ -47,17 +49,19 @@ func newOnboardingCommand(app *App) *cobra.Command {
 			fmt.Fprintln(app.Out, "4. Verify the install and API connection:")
 			fmt.Fprintln(app.Out, "   hcp doctor")
 			fmt.Fprintln(app.Out)
-			fmt.Fprintln(app.Out, "5. Connect your model:")
-			fmt.Fprintln(app.Out, "   hcp setup model")
+			fmt.Fprintln(app.Out, "5. Give your AI agent the tool surface:")
+			fmt.Fprintln(app.Out, "   hcp api catalog --json")
+			fmt.Fprintln(app.Out, "   hcp api examples --json")
 			fmt.Fprintln(app.Out)
-			fmt.Fprintln(app.Out, "6. Open the branded command center:")
-			fmt.Fprintln(app.Out, "   hcp crm")
+			fmt.Fprintln(app.Out, "6. Open Codex, Hermes, Claude Code, or another terminal-capable agent and ask it to use hcp.")
+			fmt.Fprintln(app.Out, "   Example: Use hcp to add Angi as a lead source. Plan first, then execute after I confirm, and verify it exists.")
 			fmt.Fprintln(app.Out)
 			fmt.Fprintln(app.Out, "Future updates:")
 			fmt.Fprintln(app.Out, "   hcp update")
 			fmt.Fprintln(app.Out)
-			fmt.Fprintln(app.Out, "Then type natural-language requests directly at hcp>.")
-			fmt.Fprintln(app.Out, "For ChatGPT subscription mode, choose ChatGPT in `hcp setup model`; hcp will run the browser/device-code sign-in flow inside setup.")
+			fmt.Fprintln(app.Out, "Optional experimental embedded AI:")
+			fmt.Fprintln(app.Out, "   hcp setup model")
+			fmt.Fprintln(app.Out, "   hcp crm")
 			fmt.Fprintln(app.Out)
 			fmt.Fprintln(app.Out, "If the GitHub repo is made private again later, also run:")
 			fmt.Fprintln(app.Out, "   gh auth login")

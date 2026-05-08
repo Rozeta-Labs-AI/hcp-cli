@@ -75,7 +75,7 @@ func TestOnboardingPrintsFreshInstallPath(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"go install", "Go is just the installer", "hcp account auth", "hcp setup model", "hcp crm", "hcp update"} {
+	for _, want := range []string{"go install", "Go is just the installer", "hcp account auth", "hcp api catalog --json", "Codex", "hcp update"} {
 		if !bytes.Contains(out.Bytes(), []byte(want)) {
 			t.Fatalf("onboarding output missing %q:\n%s", want, out.String())
 		}

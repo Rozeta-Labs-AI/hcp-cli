@@ -93,7 +93,7 @@ func printShellBanner(app *App) {
 			fmt.Fprintln(app.Out, "HCP Auth    missing; run auth login --api-key <key>")
 		}
 		if hasAISetup(cfg) {
-			fmt.Fprintf(app.Out, "AI Mode     %s\n", shellAIModeLabel(cfg.AI.Provider, cfg.AI.Skipped))
+			fmt.Fprintf(app.Out, "AI Mode     experimental: %s\n", shellAIModeLabel(cfg.AI.Provider, cfg.AI.Skipped))
 		} else if cfg.APIKey() != "" {
 			fmt.Fprintln(app.Out, "AI Mode     not configured; run setup model")
 		} else {
@@ -104,7 +104,7 @@ func printShellBanner(app *App) {
 	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "Tools       api catalog | api examples | sync | reports | audit | safety")
 	fmt.Fprintln(app.Out, "Start       onboarding | auth login --api-key <key> | doctor | crm")
-	fmt.Fprintln(app.Out, "Try         status | api list customers --limit 5 --json | setup model | exit")
+	fmt.Fprintln(app.Out, "Try         status | api list customers --limit 5 --json | api catalog --json | exit")
 	fmt.Fprintln(app.Out)
 }
 
