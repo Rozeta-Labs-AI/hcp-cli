@@ -306,6 +306,14 @@ Branded interactive shell:
 - `exit`, `quit`, `:q`, and `clear` are supported.
 - Unknown natural-language-style lines route through `hcp api`.
 - Unknown mutating lines default to `--plan`, not execution.
+- `ai chatgpt`, `ai codex`, and `/ai chatgpt` explain the ChatGPT subscription path through Codex CLI.
+- `ai providers` explains that OpenRouter, Anthropic, and OpenAI API-key embedded chat are separate future issues.
+
+AI integration roadmap:
+
+- `ENG-284`: ChatGPT subscription guidance through Codex in `hcp shell`.
+- `ENG-285`: Embedded AI provider configuration for OpenRouter, Anthropic, and OpenAI API keys.
+- `ENG-286`: Embedded AI chat loop with guarded `hcp` tool execution.
 
 Cleanup:
 

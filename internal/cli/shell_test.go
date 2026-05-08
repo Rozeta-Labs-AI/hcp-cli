@@ -91,3 +91,47 @@ func TestShellActionableUnknownStillRoutesToAPI(t *testing.T) {
 		t.Fatalf("expected api output:\n%s", out.String())
 	}
 }
+
+func TestShellAIChatGPTPrintsCodexGuide(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+
+	if err := runShellLine(app, "ai chatgpt"); err != nil {
+		t.Fatal(err)
+	}
+	output := out.String()
+	for _, want := range []string{"ChatGPT subscription mode uses Codex CLI", "codex --login", "Sign in with ChatGPT", "Housecall Pro API"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestShellSlashAIChatGPTPrintsCodexGuide(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+
+	if err := runShellLine(app, "/ai chatgpt"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "ChatGPT Plus/Pro -> Codex CLI -> hcp CLI") {
+		t.Fatalf("expected slash ai guide:\n%s", out.String())
+	}
+}
+
+func TestShellAIProvidersMentionsBacklogIssues(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+
+	if err := runShellLine(app, "ai providers"); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"OpenRouter", "Anthropic", "ENG-285", "ENG-286"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("output missing %q:\n%s", want, out.String())
+		}
+	}
+}

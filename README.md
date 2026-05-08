@@ -232,6 +232,36 @@ hcp> create lead source --body '{"name":"Spring Mailer"}'
 
 To execute a planned mutating action, run the explicit `api ... --yes` command after reviewing the plan.
 
+### ChatGPT Subscription Through Codex
+
+ChatGPT Plus/Pro subscription access is not configured in `hcp` as a raw API key. Use Codex CLI as the AI layer, then have Codex operate `hcp` as the local Housecall Pro tool:
+
+```text
+ChatGPT Plus/Pro -> Codex CLI -> hcp CLI -> Housecall Pro API
+```
+
+Inside `hcp shell`, run:
+
+```text
+hcp> ai chatgpt
+```
+
+That prints setup instructions and safe starter prompts. The short version:
+
+```bash
+npm install -g @openai/codex
+codex --login
+# choose Sign in with ChatGPT
+```
+
+Then ask Codex:
+
+```text
+Use the hcp CLI to verify auth and list my first 5 Housecall Pro customers as JSON. Do not modify anything.
+```
+
+OpenRouter, Anthropic, and OpenAI API-key based embedded shell chat are tracked separately from the ChatGPT subscription path.
+
 ## Natural-Language And Explicit API Actions
 
 The planner supports common English-style commands:

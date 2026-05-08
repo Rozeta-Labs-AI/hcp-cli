@@ -106,6 +106,10 @@ func runShellLine(app *App, line string) error {
 	if len(args) == 0 {
 		return nil
 	}
+	if isShellAICommand(args) {
+		printShellAIGuide(app, args)
+		return nil
+	}
 	if shouldShowShellHelp(line, args) {
 		printShellHelp(app)
 		return nil
@@ -164,7 +168,53 @@ func printShellHelp(app *App) {
 	fmt.Fprintln(app.Out, "  sync --resource customers --resource leads --page-size 10 --max-pages 1 --json")
 	fmt.Fprintln(app.Out, "  customers list --limit 5 --json")
 	fmt.Fprintln(app.Out, "  create lead source --body '{\"name\":\"Test Lead Source\"}'")
+	fmt.Fprintln(app.Out, "  ai chatgpt")
 	fmt.Fprintln(app.Out, "  exit")
+}
+
+func isShellAICommand(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	first := strings.TrimPrefix(strings.ToLower(args[0]), "/")
+	if first != "ai" {
+		return false
+	}
+	if len(args) == 1 {
+		return true
+	}
+	second := strings.ToLower(args[1])
+	return second == "chatgpt" || second == "codex" || second == "openai" || second == "providers" || second == "status"
+}
+
+func printShellAIGuide(app *App, args []string) {
+	mode := "chatgpt"
+	if len(args) > 1 {
+		mode = strings.ToLower(args[1])
+	}
+	if mode == "providers" || mode == "status" {
+		fmt.Fprintln(app.Out, "AI modes:")
+		fmt.Fprintln(app.Out, "  ChatGPT subscription: use Codex CLI as the AI layer, then have Codex run hcp.")
+		fmt.Fprintln(app.Out, "  API providers: OpenRouter, Anthropic, and OpenAI API support is tracked for embedded shell chat.")
+		fmt.Fprintln(app.Out, "  Linear: ENG-285 covers provider config; ENG-286 covers embedded AI chat.")
+		return
+	}
+	fmt.Fprintln(app.Out, "ChatGPT subscription mode uses Codex CLI, not an hcp API key.")
+	fmt.Fprintln(app.Out)
+	fmt.Fprintln(app.Out, "Architecture:")
+	fmt.Fprintln(app.Out, "  ChatGPT Plus/Pro -> Codex CLI -> hcp CLI -> Housecall Pro API")
+	fmt.Fprintln(app.Out)
+	fmt.Fprintln(app.Out, "Setup:")
+	fmt.Fprintln(app.Out, "  npm install -g @openai/codex")
+	fmt.Fprintln(app.Out, "  codex --login")
+	fmt.Fprintln(app.Out, "  # choose Sign in with ChatGPT")
+	fmt.Fprintln(app.Out)
+	fmt.Fprintln(app.Out, "Then open Codex in any terminal where hcp is installed and ask:")
+	fmt.Fprintln(app.Out, "  Use the hcp CLI to verify auth and list my first 5 Housecall Pro customers as JSON. Do not modify anything.")
+	fmt.Fprintln(app.Out, "  Use hcp to plan creating a lead source called Spring Mailer. Show the plan only; do not execute it.")
+	fmt.Fprintln(app.Out, "  Use hcp to sync customers and leads, then summarize stale opportunities. Do not modify anything.")
+	fmt.Fprintln(app.Out)
+	fmt.Fprintln(app.Out, "For OpenRouter, Anthropic, or OpenAI API keys, embedded shell chat is planned separately.")
 }
 
 func isKnownShellCommand(command string) bool {

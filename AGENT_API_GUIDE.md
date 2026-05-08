@@ -46,6 +46,22 @@ hcp> create lead source --body '{"name":"Spring Mailer"}'
 
 Unknown mutating shell lines default to a plan. Do not execute the follow-up `api ... --yes` form unless the user explicitly confirms the action.
 
+### ChatGPT Subscription Mode
+
+ChatGPT Plus/Pro is supported through Codex CLI, not as an embedded `hcp` API provider.
+
+```text
+hcp> ai chatgpt
+```
+
+This explains:
+
+```text
+ChatGPT Plus/Pro -> Codex CLI -> hcp CLI -> Housecall Pro API
+```
+
+Use API-provider integrations such as OpenRouter, Anthropic, or OpenAI API only for future embedded shell chat. Do not imply that ChatGPT subscription credentials can be pasted into `hcp` as an API key.
+
 ## Read Actions
 
 Examples:
