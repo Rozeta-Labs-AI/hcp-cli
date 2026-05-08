@@ -35,7 +35,7 @@ hcp api examples --area estimates --json
 
 ## Interactive Shell
 
-Use `hcp shell` when the user wants a branded command-center experience. Inside the shell, omit the leading `hcp`:
+Use `hcp crm` when the user wants a branded command-center experience. `hcp shell` is the developer-friendly alias for the same mode. Inside the shell, omit the leading `hcp`:
 
 ```text
 hcp> status

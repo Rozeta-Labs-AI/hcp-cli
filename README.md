@@ -204,11 +204,13 @@ hcp api --method DELETE --path /api/price_book/price_forms/form_uuid --yes --con
 
 ## Branded Interactive Shell
 
-For a more dedicated command-center experience, open the interactive shell:
+For a more dedicated command-center experience, open the branded CRM shell:
 
 ```bash
-hcp shell
+hcp crm
 ```
+
+`hcp shell` is kept as a developer-friendly alias for the same experience.
 
 You will see the Housecall Pro Command Center banner, local config/auth status, and an `hcp>` prompt.
 
@@ -240,7 +242,7 @@ ChatGPT Plus/Pro subscription access is not configured in `hcp` as a raw API key
 ChatGPT Plus/Pro -> Codex CLI -> hcp CLI -> Housecall Pro API
 ```
 
-Inside `hcp shell`, run:
+Inside `hcp crm` or `hcp shell`, run:
 
 ```text
 hcp> ai chatgpt

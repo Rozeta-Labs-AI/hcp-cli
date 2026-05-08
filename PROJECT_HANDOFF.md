@@ -299,7 +299,8 @@ Operational write hardening:
 
 Branded interactive shell:
 
-- `hcp shell` opens a Housecall Pro Command Center prompt.
+- `hcp crm` opens a Housecall Pro Command Center prompt.
+- `hcp shell` remains as a developer-friendly alias for the same mode.
 - The shell shows a branded ASCII banner plus config/auth/base URL status without exposing secrets.
 - Inside the shell, normal commands run without the leading `hcp`.
 - `status` maps to `auth doctor --endpoint /company`.

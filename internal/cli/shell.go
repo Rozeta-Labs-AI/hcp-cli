@@ -11,10 +11,18 @@ import (
 )
 
 func newShellCommand(app *App) *cobra.Command {
+	return newInteractiveCommand(app, "shell", "Open the branded interactive Housecall Pro command center", "Open an interactive shell for running hcp commands with a branded operator-console prompt. Use `hcp crm` as the friendlier user-facing command.")
+}
+
+func newCRMCommand(app *App) *cobra.Command {
+	return newInteractiveCommand(app, "crm", "Open the branded Housecall Pro CRM command center", "Open the branded Housecall Pro CRM command center for running hcp commands with a persistent prompt.")
+}
+
+func newInteractiveCommand(app *App, use string, short string, long string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "shell",
-		Short: "Open the branded interactive Housecall Pro command center",
-		Long:  "Open an interactive shell for running hcp commands with a branded operator-console prompt.",
+		Use:   use,
+		Short: short,
+		Long:  long,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runShell(app, cmd.InOrStdin())
 		},

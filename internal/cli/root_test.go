@@ -35,10 +35,28 @@ func TestRootHelpRegistersCommandGroups(t *testing.T) {
 		"tech",
 		"marketing",
 		"mcp",
+		"crm",
+		"shell",
 	} {
 		if !bytes.Contains([]byte(help), []byte(want)) {
 			t.Fatalf("help output does not include %q:\n%s", want, help)
 		}
+	}
+}
+
+func TestCRMCommandOpensBrandedShell(t *testing.T) {
+	var out bytes.Buffer
+	cmd := newRootCommand("test", &out, &out)
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetIn(bytes.NewBufferString("exit\n"))
+	cmd.SetArgs([]string{"crm"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(out.Bytes(), []byte("Housecall Pro Command Center")) {
+		t.Fatalf("crm output missing branded shell:\n%s", out.String())
 	}
 }
 
