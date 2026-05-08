@@ -23,6 +23,12 @@ type App struct {
 	Out        io.Writer
 	Err        io.Writer
 	Safety     *safetySession
+	Pending    *pendingShellAction
+	ShellRunner func(app *App, args []string) error
+}
+
+type pendingShellAction struct {
+	Args []string
 }
 
 func Execute(version string) error {

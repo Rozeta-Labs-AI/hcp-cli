@@ -162,6 +162,9 @@ func runShellLine(app *App, line string) error {
 	if len(args) == 0 {
 		return nil
 	}
+	if isPendingConfirmation(line) {
+		return runPendingShellAction(app)
+	}
 	if isShellAICommand(args) {
 		printShellAIGuide(app, args)
 		return nil
@@ -190,7 +193,7 @@ func runShellLine(app *App, line string) error {
 			args = append(args, "--plan")
 		}
 	}
-	return runShellArgs(app, args)
+	return runShellArgsWithOverride(app, args)
 }
 
 func shouldShowShellHelp(line string, args []string) bool {
@@ -335,15 +338,69 @@ func runAIDecision(app *App, decision aiDecision) (bool, error) {
 			return true, fmt.Errorf("AI returned an empty command")
 		}
 		printAIStage(app, "Proposed command: hcp "+strings.Join(args, " "))
+		if storesPendingPlan(args) {
+			app.Pending = &pendingShellAction{Args: append([]string(nil), args...)}
+		}
 		printAIStage(app, "Running command...")
-		if err := runShellArgs(app, args); err != nil {
+		if err := runShellArgsWithOverride(app, args); err != nil {
 			return true, err
+		}
+		if storesPendingPlan(args) {
+			printAIStage(app, "Preview only. Say \"yes\" or \"run it\" to execute this exact plan.")
 		}
 		printAIStage(app, "Done.")
 		return true, nil
 	default:
 		return true, fmt.Errorf("unsupported AI decision %q", decision.Type)
 	}
+}
+
+func isPendingConfirmation(line string) bool {
+	lower := strings.ToLower(strings.TrimSpace(line))
+	switch lower {
+	case "yes", "y", "run it", "execute it", "do it", "create it", "create that customer", "execute that", "run that", "yes execute", "yes run it":
+		return true
+	default:
+		return false
+	}
+}
+
+func runPendingShellAction(app *App) error {
+	if app.Pending == nil || len(app.Pending.Args) == 0 {
+		return errorf(exitUsage, "no pending plan to execute")
+	}
+	args := makeExecutableArgs(app.Pending.Args)
+	app.Pending = nil
+	printAIStage(app, "Executing the previous plan.")
+	printAIStage(app, "Running command: hcp "+strings.Join(args, " "))
+	if err := runShellArgsWithOverride(app, args); err != nil {
+		printAIStage(app, fmt.Sprintf("Execution failed: %v", err))
+		return nil
+	}
+	printAIStage(app, "Execution complete.")
+	return nil
+}
+
+func storesPendingPlan(args []string) bool {
+	return hasShellFlag(args, "--plan") && isLikelyMutatingShellLine(strings.Join(args, " "))
+}
+
+func makeExecutableArgs(args []string) []string {
+	out := make([]string, 0, len(args)+1)
+	hasYes := false
+	for _, arg := range args {
+		if arg == "--plan" || strings.HasPrefix(arg, "--plan=") {
+			continue
+		}
+		if arg == "--yes" || strings.HasPrefix(arg, "--yes=") {
+			hasYes = true
+		}
+		out = append(out, arg)
+	}
+	if !hasYes {
+		out = append(out, "--yes")
+	}
+	return out
 }
 
 func aiRetryRequest(original string, previous aiDecision, err error) string {
@@ -399,6 +456,13 @@ func runShellArgs(app *App, args []string) error {
 		}
 	}
 	return nil
+}
+
+func runShellArgsWithOverride(app *App, args []string) error {
+	if app.ShellRunner != nil {
+		return app.ShellRunner(app, args)
+	}
+	return runShellArgs(app, args)
 }
 
 func shouldStreamShellCommand(args []string) bool {

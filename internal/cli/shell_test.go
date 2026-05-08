@@ -266,6 +266,37 @@ func TestShellAIStopsClearlyAfterRetryCommandFails(t *testing.T) {
 	}
 }
 
+func TestShellStoresPendingPlanAndExecutesOnConfirmation(t *testing.T) {
+	var ran [][]string
+	app := &App{Version: "test", Out: &bytes.Buffer{}, Err: &bytes.Buffer{}, Quiet: false}
+	planned := []string{"api", "create", "customer", "--body", `{"first_name":"Rozeta"}`, "--plan", "--json"}
+	if !storesPendingPlan(planned) {
+		t.Fatal("expected mutating plan to store pending action")
+	}
+	app.Pending = &pendingShellAction{Args: append([]string(nil), planned...)}
+	app.ShellRunner = func(app *App, args []string) error {
+		ran = append(ran, append([]string(nil), args...))
+		return nil
+	}
+
+	if err := runPendingShellAction(app); err != nil {
+		t.Fatal(err)
+	}
+	if app.Pending != nil {
+		t.Fatal("pending action should clear after execution")
+	}
+	if len(ran) != 1 {
+		t.Fatalf("ran %d commands, want 1", len(ran))
+	}
+	got := strings.Join(ran[0], " ")
+	if strings.Contains(got, "--plan") {
+		t.Fatalf("confirmation command still has --plan: %s", got)
+	}
+	if !strings.Contains(got, "--yes") {
+		t.Fatalf("confirmation command missing --yes: %s", got)
+	}
+}
+
 func TestNormalizeAICommandAddsPlanToMutatingCommand(t *testing.T) {
 	args := normalizeAICommandArgs([]string{"api", "create", "lead", "source", "--body", `{"name":"Test"}`})
 	if !hasShellFlag(args, "--plan") {
