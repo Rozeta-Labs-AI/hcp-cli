@@ -56,7 +56,7 @@ func TestBuildAPIPlanUsesExplicitPathForAnyEndpoint(t *testing.T) {
 }
 
 func TestBuildAPIPlanMarksDestructiveActions(t *testing.T) {
-	plan, err := buildAPIPlan("delete /jobs/job_123/schedule", "", "", "", nil, nil, nil, "", "", 0, 0)
+	plan, err := buildAPIPlan("delete /api/price_book/price_forms/form_123", "", "", "", nil, nil, nil, "", "", 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,8 +66,43 @@ func TestBuildAPIPlanMarksDestructiveActions(t *testing.T) {
 	if plan.Risk != "destructive" {
 		t.Fatalf("risk = %q, want destructive", plan.Risk)
 	}
-	if got, want := destructiveConfirmToken(plan), "delete:/jobs/job_123/schedule"; got != want {
+	if got, want := destructiveConfirmToken(plan), "delete:/api/price_book/price_forms/form_123"; got != want {
 		t.Fatalf("confirm token = %q, want %q", got, want)
+	}
+}
+
+func TestBuildAPIPlanMarksOperationalWrites(t *testing.T) {
+	plan, err := buildAPIPlan("update schedule availability", "PUT", "/company/schedule_availability", `{"daily_schedule_windows":[]}`, nil, nil, nil, "", "", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := plan.Risk, "operational"; got != want {
+		t.Fatalf("risk = %q, want %q", got, want)
+	}
+	if !requiresConfirm(plan.Risk) {
+		t.Fatal("operational writes should require confirmation")
+	}
+}
+
+func TestAddVerificationPlan(t *testing.T) {
+	plan, err := buildAPIPlan("update schedule availability", "PUT", "/company/schedule_availability", `{"daily_schedule_windows":[]}`, nil, nil, nil, "", "", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := addVerificationPlan(&plan, "/company/schedule_availability", []string{"page_size=1"}, []string{"09:00", "17:00"}); err != nil {
+		t.Fatal(err)
+	}
+	if plan.Verification == nil {
+		t.Fatal("verification plan missing")
+	}
+	if got, want := plan.Verification.Path, "/company/schedule_availability"; got != want {
+		t.Fatalf("verify path = %q, want %q", got, want)
+	}
+	if got, want := plan.Verification.Query["page_size"], "1"; got != want {
+		t.Fatalf("verify query = %v, want %s", got, want)
+	}
+	if got, want := len(plan.Verification.Contains), 2; got != want {
+		t.Fatalf("verify contains = %d, want %d", got, want)
 	}
 }
 

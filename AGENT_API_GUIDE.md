@@ -8,7 +8,8 @@ This guide is for Codex, Claude Code, and other coding agents operating the loca
 - Use `--plan` or `--dry-run` before any mutating action.
 - Do not execute mutating actions unless the user explicitly asked for the action.
 - Use explicit `--method` and `--path` when natural language is ambiguous.
-- Destructive actions need both `--yes` and the exact `--confirm <method:path>` token shown by the plan.
+- Operational and destructive actions need both `--yes` and the exact `--confirm <method:path>` token shown by the plan.
+- For operational settings, use read-back verification and do not claim success unless the verification passes.
 
 ## Discover API Actions
 
@@ -67,6 +68,13 @@ hcp api --method DELETE --path /jobs/job_123/schedule --plan
 hcp api --method DELETE --path /jobs/job_123/schedule --yes --confirm delete:/jobs/job_123/schedule
 ```
 
+Operational write with verification:
+
+```bash
+hcp api --method PUT --path /company/schedule_availability --body '{"daily_schedule_windows":[]}' --plan
+hcp api --method PUT --path /company/schedule_availability --body '{"daily_schedule_windows":[]}' --yes --confirm put:/company/schedule_availability --verify-get /company/schedule_availability --verify-contains '"daily_schedule_windows"'
+```
+
 ## Full-Surface Fallback
 
 If a plain-English phrase does not infer the exact endpoint, use the catalog and call the endpoint explicitly:
@@ -83,6 +91,7 @@ hcp api --method DELETE --path /api/price_book/materials/mat_uuid --plan
 - `/pipeline/statuses` requires `resource_type` with `lead`, `job`, or `estimate`.
 - `/api/price_book/materials` requires `material_category_uuid`.
 - `/checklists` requires one or more job or estimate UUID filters.
+- Schedule availability writes may return a success-shaped response without persisting the requested change. Always read back with `--verify-get /company/schedule_availability` and verify the expected windows.
 
 ## File Uploads
 

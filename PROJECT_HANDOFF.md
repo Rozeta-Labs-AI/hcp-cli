@@ -290,6 +290,13 @@ Supported write paths validated:
 - `POST /lead_sources`
 - `PUT /lead_sources/{lead_source_id}`
 
+Operational write hardening:
+
+- `hcp api` now labels company schedule availability, company franchise info, pipeline statuses, app enable, dispatch, and schedule changes as `operational`.
+- Operational writes require `--yes` plus the exact `--confirm <method:path>` token, like destructive writes.
+- `hcp api` supports read-back verification with `--verify-get`, `--verify-query`, and `--verify-contains`.
+- Schedule availability writes should not be considered complete unless `GET /company/schedule_availability` confirms the requested windows.
+
 Cleanup:
 
 - DELETE attempts against the temporary customer, address, tag, and lead source returned 404.

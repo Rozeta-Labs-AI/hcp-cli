@@ -7,7 +7,7 @@ The project currently exposes the full documented API surface from the included 
 - 95 documented API operations through `hcp api catalog`.
 - Generic JSON API execution with explicit `--method` and `--path`.
 - Natural-language endpoint planning for common Housecall Pro resource families.
-- Guardrails for write actions with `--plan`, `--dry-run`, `--yes`, and destructive confirmation tokens.
+- Guardrails for write actions with `--plan`, `--dry-run`, `--yes`, operational/destructive confirmation tokens, and optional read-back verification.
 - Multipart/file upload support for attachment endpoints.
 - Local SQLite sync for reporting and agent context.
 - Report commands for owner briefs, funnel, leads, estimates, jobs, invoices, cash, and delivery dry-runs.
@@ -313,8 +313,29 @@ The CLI is designed for AI-agent use, so write operations are guarded:
 
 - `GET` requests can run directly.
 - `POST`, `PUT`, `PATCH`, and `DELETE` require `--plan`, `--dry-run`, or `--yes`.
-- Destructive actions require `--yes` plus an exact `--confirm <method:path>` token.
+- Operational and destructive actions require `--yes` plus an exact `--confirm <method:path>` token.
 - Plans show method, path, query, body, mutability, risk label, and files.
+- Use `--verify-get` and `--verify-contains` for writes where Housecall Pro may return a success-shaped response before the setting actually persists.
+
+Operational writes include company schedule availability, company franchise info, pipeline statuses, app enable, dispatch, and job or estimate schedule changes.
+
+Example read-back verification:
+
+```bash
+hcp api --method PUT --path /company/schedule_availability \
+  --body '{"daily_schedule_windows":[...]}' \
+  --plan
+
+hcp api --method PUT --path /company/schedule_availability \
+  --body '{"daily_schedule_windows":[...]}' \
+  --yes \
+  --confirm put:/company/schedule_availability \
+  --verify-get /company/schedule_availability \
+  --verify-contains '"start_time":"09:00"' \
+  --verify-contains '"end_time":"17:00"'
+```
+
+If verification fails, do not treat the write as complete. Use the Housecall Pro UI or a stricter full-payload API request and verify again.
 
 Recommended rule for agents:
 

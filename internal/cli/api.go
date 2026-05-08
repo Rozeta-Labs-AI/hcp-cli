@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,13 +19,21 @@ import (
 )
 
 type apiPlan struct {
-	Method  string         `json:"method"`
-	Path    string         `json:"path"`
-	Query   map[string]any `json:"query,omitempty"`
-	Body    any            `json:"body,omitempty"`
-	Files   []apiPlanFile  `json:"files,omitempty"`
-	Mutable bool           `json:"mutable"`
-	Risk    string         `json:"risk"`
+	Method       string         `json:"method"`
+	Path         string         `json:"path"`
+	Query        map[string]any `json:"query,omitempty"`
+	Body         any            `json:"body,omitempty"`
+	Files        []apiPlanFile  `json:"files,omitempty"`
+	Mutable      bool           `json:"mutable"`
+	Risk         string         `json:"risk"`
+	Verification *apiVerifyPlan `json:"verification,omitempty"`
+}
+
+type apiVerifyPlan struct {
+	Method   string         `json:"method"`
+	Path     string         `json:"path"`
+	Query    map[string]any `json:"query,omitempty"`
+	Contains []string       `json:"contains,omitempty"`
 }
 
 type apiPlanFile struct {
@@ -78,6 +87,9 @@ func newAPICommand(app *App) *cobra.Command {
 	var confirm string
 	var limit int
 	var page int
+	var verifyGet string
+	var verifyQueryPairs []string
+	var verifyContains []string
 
 	cmd := &cobra.Command{
 		Use:   "api [natural language request]",
@@ -94,6 +106,9 @@ func newAPICommand(app *App) *cobra.Command {
 			if err != nil {
 				return errorf(exitUsage, "%w", err)
 			}
+			if err := addVerificationPlan(&plan, verifyGet, verifyQueryPairs, verifyContains); err != nil {
+				return errorf(exitUsage, "%w", err)
+			}
 
 			if dryRun {
 				planOnly = true
@@ -104,8 +119,8 @@ func newAPICommand(app *App) *cobra.Command {
 			if plan.Mutable && !yes {
 				return errorf(exitUsage, "refusing to run %s %s without --yes; inspect first with --plan", plan.Method, plan.Path)
 			}
-			if plan.Risk == "destructive" && confirm != destructiveConfirmToken(plan) {
-				return errorf(exitUsage, "refusing destructive %s %s without --confirm %s", plan.Method, plan.Path, destructiveConfirmToken(plan))
+			if requiresConfirm(plan.Risk) && confirm != destructiveConfirmToken(plan) {
+				return errorf(exitUsage, "refusing %s %s %s without --confirm %s", plan.Risk, plan.Method, plan.Path, destructiveConfirmToken(plan))
 			}
 
 			client, _, _, err := app.newClient()
@@ -122,20 +137,34 @@ func newAPICommand(app *App) *cobra.Command {
 			if err != nil {
 				return errorf(exitAPI, "%w", err)
 			}
+			verification, err := runVerification(commandContext(cmd), client, plan.Verification)
+			if err != nil {
+				return errorf(exitAPI, "%w", err)
+			}
 
 			if app.JSON {
 				var value any
 				if err := json.Unmarshal(raw, &value); err != nil {
 					return fmt.Errorf("decode json response: %w", err)
 				}
-				return writeJSON(app.Out, map[string]any{
+				output := map[string]any{
 					"request":  plan,
 					"response": value,
-				})
+				}
+				if verification != nil {
+					output["verification"] = verification
+				}
+				return writeJSON(app.Out, output)
 			}
 
 			fmt.Fprintf(app.Out, "%s %s\n", plan.Method, plan.Path)
-			return prettyPrintRawJSON(app.Out, raw)
+			if err := prettyPrintRawJSON(app.Out, raw); err != nil {
+				return err
+			}
+			if verification != nil {
+				fmt.Fprintf(app.Out, "\nverification: %s %s ok=%t\n", verification.Method, verification.Path, verification.OK)
+			}
+			return nil
 		},
 	}
 
@@ -151,6 +180,9 @@ func newAPICommand(app *App) *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "alias for --plan; do not send the API request")
 	cmd.Flags().BoolVar(&yes, "yes", false, "execute mutating API requests")
 	cmd.Flags().StringVar(&confirm, "confirm", "", "confirmation token required for destructive actions")
+	cmd.Flags().StringVar(&verifyGet, "verify-get", "", "GET path to read back after a successful mutating request")
+	cmd.Flags().StringArrayVar(&verifyQueryPairs, "verify-query", nil, "query parameter for --verify-get as key=value; repeat for multiple values")
+	cmd.Flags().StringArrayVar(&verifyContains, "verify-contains", nil, "substring that must appear in the verification response; repeat for multiple checks")
 	cmd.Flags().IntVar(&limit, "limit", 0, "page_size alias for natural-language list requests")
 	cmd.Flags().IntVar(&page, "page", 0, "page query parameter for natural-language list requests")
 
@@ -537,6 +569,76 @@ func multipartFiles(files []apiPlanFile) []hcp.FilePart {
 	return out
 }
 
+func addVerificationPlan(plan *apiPlan, verifyGet string, verifyQueryPairs []string, verifyContains []string) error {
+	verifyGet = normalizePath(verifyGet)
+	if verifyGet == "" {
+		if len(verifyQueryPairs) > 0 || len(verifyContains) > 0 {
+			return fmt.Errorf("--verify-query and --verify-contains require --verify-get")
+		}
+		return nil
+	}
+	query, err := parseQueryPairs(verifyQueryPairs)
+	if err != nil {
+		return fmt.Errorf("parse verification query: %w", err)
+	}
+	contains := make([]string, 0, len(verifyContains))
+	for _, value := range verifyContains {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			contains = append(contains, value)
+		}
+	}
+	plan.Verification = &apiVerifyPlan{
+		Method:   http.MethodGet,
+		Path:     verifyGet,
+		Query:    query,
+		Contains: contains,
+	}
+	return nil
+}
+
+type apiVerificationResult struct {
+	Method   string   `json:"method"`
+	Path     string   `json:"path"`
+	Query    any      `json:"query,omitempty"`
+	Contains []string `json:"contains,omitempty"`
+	OK       bool     `json:"ok"`
+	Response any      `json:"response,omitempty"`
+}
+
+func runVerification(ctx context.Context, client *hcp.Client, plan *apiVerifyPlan) (*apiVerificationResult, error) {
+	if plan == nil {
+		return nil, nil
+	}
+	raw, err := client.DoRaw(ctx, plan.Method, plan.Path, valuesFromPlan(plan.Query), nil)
+	if err != nil {
+		return nil, fmt.Errorf("verification %s %s failed: %w", plan.Method, plan.Path, err)
+	}
+	rawText := string(raw)
+	missing := []string{}
+	for _, expected := range plan.Contains {
+		if !strings.Contains(rawText, expected) {
+			missing = append(missing, expected)
+		}
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, fmt.Errorf("decode verification response: %w", err)
+	}
+	result := &apiVerificationResult{
+		Method:   plan.Method,
+		Path:     plan.Path,
+		Query:    plan.Query,
+		Contains: plan.Contains,
+		OK:       len(missing) == 0,
+		Response: value,
+	}
+	if len(missing) > 0 {
+		return result, fmt.Errorf("verification %s %s failed: response missing %q", plan.Method, plan.Path, strings.Join(missing, `", "`))
+	}
+	return result, nil
+}
+
 func writeAPIPlan(app *App, plan apiPlan) error {
 	if app.JSON {
 		return writeJSON(app.Out, plan)
@@ -558,10 +660,16 @@ func writeAPIPlan(app *App, plan apiPlan) error {
 	}
 	if plan.Mutable {
 		fmt.Fprintf(app.Out, "mutable=true risk=%s; execute with --yes", plan.Risk)
-		if plan.Risk == "destructive" {
+		if requiresConfirm(plan.Risk) {
 			fmt.Fprintf(app.Out, " --confirm %s", destructiveConfirmToken(plan))
 		}
 		fmt.Fprintln(app.Out)
+	}
+	if plan.Verification != nil {
+		fmt.Fprintf(app.Out, "verify=%s %s\n", plan.Verification.Method, plan.Verification.Path)
+		for _, value := range plan.Verification.Contains {
+			fmt.Fprintf(app.Out, "verify.contains=%s\n", value)
+		}
 	}
 	return nil
 }
@@ -571,15 +679,33 @@ func riskFor(method string, path string) string {
 		return "read"
 	}
 	lower := strings.ToLower(path)
+	if isOperationalWrite(method, lower) {
+		return "operational"
+	}
 	if method == http.MethodDelete ||
 		strings.Contains(lower, "/disable") ||
 		strings.Contains(lower, "/decline") ||
 		strings.Contains(lower, "/lock") ||
-		strings.Contains(lower, "/schedule") ||
 		strings.Contains(lower, "/webhooks/subscription") {
 		return "destructive"
 	}
 	return "mutating"
+}
+
+func isOperationalWrite(method string, lowerPath string) bool {
+	if method == http.MethodGet {
+		return false
+	}
+	return strings.Contains(lowerPath, "/company/schedule_availability") ||
+		strings.Contains(lowerPath, "/pipeline/statuses") ||
+		strings.Contains(lowerPath, "/application/enable") ||
+		strings.Contains(lowerPath, "/company/franchise_info") ||
+		strings.HasSuffix(lowerPath, "/schedule") ||
+		strings.Contains(lowerPath, "/dispatch")
+}
+
+func requiresConfirm(risk string) bool {
+	return risk == "destructive" || risk == "operational"
 }
 
 func destructiveConfirmToken(plan apiPlan) string {
