@@ -58,7 +58,11 @@ func newAICommand(app *App) *cobra.Command {
 			fmt.Fprintf(app.Out, "AI provider: %s\n", cfg.AI.Provider)
 			fmt.Fprintf(app.Out, "AI model: %s\n", cfg.AI.Model)
 			if cfg.AI.Provider == "chatgpt" {
-				fmt.Fprintln(app.Out, "ChatGPT subscription path: run `codex --login` and choose Sign in with ChatGPT.")
+				fmt.Fprintln(app.Out, "ChatGPT subscription path: hcp will call local Codex CLI; run `codex --login` first.")
+			}
+			if env := aiProviderEnvName(cfg.AI.Provider); env != "" {
+				fmt.Fprintf(app.Out, "AI API key available: %t\n", configuredAIKey(cfg.AI) != "")
+				fmt.Fprintf(app.Out, "Environment fallback: %s\n", env)
 			}
 			return nil
 		},
@@ -85,13 +89,14 @@ func newSetupModelCommand(app *App) *cobra.Command {
 				Model:    strings.TrimSpace(model),
 				Skipped:  skip,
 			}
+			var reader *bufio.Reader
 			if choice.Provider == "" && !choice.Skipped {
 				if app.NoInput {
 					printAIModelPicker(app)
 					fmt.Fprintln(app.Out, "Run again with --provider chatgpt, openrouter, anthropic, openai, ollama, or --skip.")
 					return nil
 				}
-				reader := bufio.NewReader(cmd.InOrStdin())
+				reader = bufio.NewReader(cmd.InOrStdin())
 				selected, err := promptAIModelChoice(app, reader)
 				if err != nil {
 					return err
@@ -109,6 +114,17 @@ func newSetupModelCommand(app *App) *cobra.Command {
 			}
 			if choice.Provider == "chatgpt" {
 				cfg.AI.APIKey = ""
+			}
+			if choice.Provider != "" && choice.Provider != "chatgpt" && choice.Provider != "ollama" && cfg.AI.APIKey == "" && !choice.Skipped && !app.NoInput {
+				fmt.Fprintf(app.Out, "Paste %s API key, or press Enter to use environment variable later: ", strings.ToUpper(choice.Provider))
+				if reader == nil {
+					reader = bufio.NewReader(cmd.InOrStdin())
+				}
+				key, err := readerLine(reader)
+				if err != nil {
+					return err
+				}
+				cfg.AI.APIKey = strings.TrimSpace(key)
 			}
 			if err := config.Save(path, cfg); err != nil {
 				return errorf(exitConfig, "%w", err)
@@ -282,26 +298,46 @@ func printAISetupResult(app *App, ai config.AIConfig) {
 		fmt.Fprintf(app.Out, "Model: %s\n", ai.Model)
 	}
 	if ai.Provider == "chatgpt" {
-		fmt.Fprintln(app.Out, "Next: run `codex --login` and choose Sign in with ChatGPT.")
+		fmt.Fprintln(app.Out, "Next: run `codex --login` and choose Sign in with ChatGPT. hcp crm will call Codex inside this same shell.")
 		return
 	}
 	if ai.Provider != "" && ai.APIKey == "" && ai.Provider != "ollama" {
-		envName := strings.ToUpper(ai.Provider) + "_API_KEY"
-		if ai.Provider == "openai" {
-			envName = "OPENAI_API_KEY"
-		}
+		envName := aiProviderEnvName(ai.Provider)
 		fmt.Fprintf(app.Out, "Next: set %s or rerun setup with --api-key.\n", envName)
 	}
 }
 
 func aiStatusPayload(cfg config.Config) map[string]any {
 	return map[string]any{
-		"configured": cfg.AI.Provider != "" && !cfg.AI.Skipped,
-		"provider":   cfg.AI.Provider,
-		"model":      cfg.AI.Model,
-		"skipped":    cfg.AI.Skipped,
-		"api_key":    config.Mask(cfg.AI.APIKey),
+		"configured":        cfg.AI.Provider != "" && !cfg.AI.Skipped,
+		"provider":          cfg.AI.Provider,
+		"model":             cfg.AI.Model,
+		"skipped":           cfg.AI.Skipped,
+		"api_key":           config.Mask(cfg.AI.APIKey),
+		"api_key_available": configuredAIKey(cfg.AI) != "",
 	}
+}
+
+func aiProviderEnvName(provider string) string {
+	switch provider {
+	case "openrouter":
+		return "OPENROUTER_API_KEY"
+	case "anthropic":
+		return "ANTHROPIC_API_KEY"
+	case "openai":
+		return "OPENAI_API_KEY"
+	default:
+		return ""
+	}
+}
+
+func readerLine(in io.Reader) (string, error) {
+	reader := bufio.NewReader(in)
+	line, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	return line, nil
 }
 
 func isTerminalReader(in io.Reader) bool {

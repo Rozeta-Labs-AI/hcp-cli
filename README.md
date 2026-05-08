@@ -35,6 +35,18 @@ The intended agent workflow is:
 
 ## Install For End Users
 
+### Recommended Install Flow
+
+```bash
+go install github.com/Rozeta-Labs-AI/hcp-cli/cmd/hcp@latest
+export PATH="$PATH:$(go env GOPATH)/bin"
+hcp account auth --api-key <your-housecall-pro-api-key>
+hcp setup model
+hcp crm
+```
+
+Plain English: Go is just the installer for this CLI. It gives you the global `hcp` command, similar to how npm installs Node-based CLIs.
+
 ### Option 1: Install From Source With Go
 
 Prerequisites:
@@ -120,8 +132,10 @@ Each user configures their own credentials locally. Credentials are not shared t
 ### Store Credentials Locally
 
 ```bash
-hcp auth login --api-key <your-housecall-pro-api-key>
+hcp account auth --api-key <your-housecall-pro-api-key>
 ```
+
+`hcp auth login` remains available as a lower-level compatibility alias.
 
 Then validate:
 
@@ -160,7 +174,7 @@ hcp onboarding
 Check auth:
 
 ```bash
-hcp auth status
+hcp account status
 hcp doctor
 ```
 
@@ -221,7 +235,7 @@ hcp crm
 
 You will see the Housecall Pro Command Center banner, local config/auth status, and an `hcp>` prompt.
 
-On first interactive use, `hcp crm` offers AI Assistant Setup:
+After HCP auth is configured, `hcp crm` can use an embedded model in the same terminal session. Run `setup model` to choose the model path:
 
 ```text
 AI Assistant Setup
@@ -248,6 +262,16 @@ hcp> setup model
 hcp> ai status
 ```
 
+For API-key providers, pass `--api-key` or set one of:
+
+```bash
+export OPENROUTER_API_KEY=<key>
+export ANTHROPIC_API_KEY=<key>
+export OPENAI_API_KEY=<key>
+```
+
+ChatGPT subscription mode uses the local Codex CLI bridge. Run `codex --login` once, choose ChatGPT sign-in, then choose ChatGPT/Codex in `setup model`.
+
 Inside the shell, run normal commands without typing the leading `hcp`:
 
 ```text
@@ -258,6 +282,8 @@ hcp> sync --resource customers --resource leads --json
 hcp> customers list --limit 5 --json
 hcp> exit
 ```
+
+With an AI provider configured, conversational lines are sent to the embedded model. The model returns either a plain answer or a proposed `hcp` command, and proposed commands still execute through the existing safety gates.
 
 The shell also accepts simple natural-language-style API lines. Unknown mutating requests default to a plan instead of execution:
 
@@ -270,10 +296,10 @@ To execute a planned mutating action, run the explicit `api ... --yes` command a
 
 ### ChatGPT Subscription Through Codex
 
-ChatGPT Plus/Pro subscription access is not configured in `hcp` as a raw API key. Use Codex CLI as the AI layer, then have Codex operate `hcp` as the local Housecall Pro tool:
+ChatGPT Plus/Pro subscription access is not configured in `hcp` as a raw API key. Use Codex CLI as the local model bridge inside `hcp crm`:
 
 ```text
-ChatGPT Plus/Pro -> Codex CLI -> hcp CLI -> Housecall Pro API
+ChatGPT Plus/Pro -> Codex CLI -> hcp crm embedded chat -> Housecall Pro API
 ```
 
 Inside `hcp crm` or `hcp shell`, run:
@@ -290,13 +316,12 @@ codex --login
 # choose Sign in with ChatGPT
 ```
 
-Then ask Codex:
+Then choose ChatGPT mode:
 
 ```text
-Use the hcp CLI to verify auth and list my first 5 Housecall Pro customers as JSON. Do not modify anything.
+hcp> setup model
+hcp> Show my first 5 customers as JSON.
 ```
-
-OpenRouter, Anthropic, and OpenAI API-key based embedded shell chat are tracked separately from the ChatGPT subscription path.
 
 ## Natural-Language And Explicit API Actions
 

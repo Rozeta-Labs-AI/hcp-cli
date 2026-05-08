@@ -2,8 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"context"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Rozeta-Labs-AI/hcp-cli/internal/config"
 )
 
 func TestSplitShellLinePreservesQuotedJSON(t *testing.T) {
@@ -58,7 +62,7 @@ func TestShellGuidancePhrasePrintsHelp(t *testing.T) {
 		t.Fatal(err)
 	}
 	output := out.String()
-	for _, want := range []string{"command-driven HCP shell", "status", "api get /company --json"} {
+	for _, want := range []string{"HCP command center", "status", "api get /company --json"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("output missing %q:\n%s", want, output)
 		}
@@ -76,7 +80,7 @@ func TestShellNonActionableUnknownPrintsHelp(t *testing.T) {
 	if err := runShellLine(app, "tell me a joke"); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "not a built-in chatbot") {
+	if !strings.Contains(out.String(), "configure AI with `setup model`") {
 		t.Fatalf("expected guidance output:\n%s", out.String())
 	}
 }
@@ -131,7 +135,7 @@ func TestShellAIProvidersMentionsBacklogIssues(t *testing.T) {
 	if err := runShellLine(app, "ai providers"); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"OpenRouter", "Anthropic", "ENG-285", "ENG-286"} {
+	for _, want := range []string{"OpenRouter", "Anthropic", "Ollama", "local credentials"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("output missing %q:\n%s", want, out.String())
 		}
@@ -149,5 +153,43 @@ func TestShellSetupModelRoutesToSetupCommand(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "AI Assistant Setup") {
 		t.Fatalf("expected setup picker:\n%s", out.String())
+	}
+}
+
+func TestShellUsesConfiguredAIForConversationalLine(t *testing.T) {
+	previous := callAI
+	defer func() { callAI = previous }()
+	callAI = func(ctx context.Context, cfg config.Config, userRequest string) (aiDecision, error) {
+		if userRequest != "show my first 5 customers" {
+			t.Fatalf("request = %q", userRequest)
+		}
+		return aiDecision{Type: "command", Command: "api list customers --limit 5 --json --plan", Explanation: "Listing customers."}, nil
+	}
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	cfg := config.Default()
+	cfg.AI.Provider = "ollama"
+	cfg.AI.Model = "llama3.1"
+	if err := config.Save(configPath, cfg); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: configPath}
+
+	if err := runShellLine(app, "show my first 5 customers"); err != nil {
+		t.Fatal(err)
+	}
+	output := out.String()
+	for _, want := range []string{"Listing customers.", `"path": "/customers"`} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestNormalizeAICommandAddsPlanToMutatingCommand(t *testing.T) {
+	args := normalizeAICommandArgs([]string{"api", "create", "lead", "source", "--body", `{"name":"Test"}`})
+	if !hasShellFlag(args, "--plan") {
+		t.Fatalf("args = %#v, want --plan", args)
 	}
 }

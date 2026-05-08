@@ -52,11 +52,13 @@ hcp> api list customers --limit 5 --json
 hcp> create lead source --body '{"name":"Spring Mailer"}'
 ```
 
+When an AI provider is configured, conversational lines inside `hcp crm` are handled by the embedded model. The model can return a plain answer or a proposed `hcp` command. Proposed commands still run through the same local command path, so safety gates remain active.
+
 Unknown mutating shell lines default to a plan. Do not execute the follow-up `api ... --yes` form unless the user explicitly confirms the action.
 
 ### ChatGPT Subscription Mode
 
-ChatGPT Plus/Pro is supported through Codex CLI, not as an embedded `hcp` API provider.
+ChatGPT Plus/Pro is supported through the local Codex CLI bridge. The user runs `codex --login` once, then selects ChatGPT/Codex in `hcp setup model`.
 
 ```text
 hcp> ai chatgpt
@@ -65,10 +67,10 @@ hcp> ai chatgpt
 This explains:
 
 ```text
-ChatGPT Plus/Pro -> Codex CLI -> hcp CLI -> Housecall Pro API
+ChatGPT Plus/Pro -> Codex CLI -> hcp crm embedded chat -> Housecall Pro API
 ```
 
-Use API-provider integrations such as OpenRouter, Anthropic, or OpenAI API only for future embedded shell chat. Do not imply that ChatGPT subscription credentials can be pasted into `hcp` as an API key.
+OpenRouter, Anthropic, and OpenAI API are supported as embedded API-provider modes through local config or environment variables. Do not imply that ChatGPT subscription credentials can be pasted into `hcp` as an API key.
 
 ## Read Actions
 

@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -176,6 +177,9 @@ func runShellLine(app *App, line string) error {
 	} else if len(args) >= 2 && args[0] == "safety" && args[1] == "status" {
 		return newSafetyStatusCommand(app).Execute()
 	} else if !isKnownShellCommand(args[0]) {
+		if handled, err := runShellAI(app, line); handled || err != nil {
+			return err
+		}
 		if !isActionableShellLine(line) {
 			printShellHelp(app)
 			return nil
@@ -188,22 +192,7 @@ func runShellLine(app *App, line string) error {
 			args = append(args, "--plan")
 		}
 	}
-	if err := recordShellSafetyAttempt(app, args); err != nil {
-		return err
-	}
-	var out bytes.Buffer
-	child := newRootCommand(app.Version, &out, app.Err)
-	child.SetArgs(args)
-	if err := child.Execute(); err != nil {
-		return err
-	}
-	if out.Len() > 0 {
-		_, _ = app.Out.Write(out.Bytes())
-		if !bytes.HasSuffix(out.Bytes(), []byte("\n")) {
-			fmt.Fprintln(app.Out)
-		}
-	}
-	return nil
+	return runShellArgs(app, args)
 }
 
 func shouldShowShellHelp(line string, args []string) bool {
@@ -223,8 +212,8 @@ func shouldShowShellHelp(line string, args []string) bool {
 }
 
 func printShellHelp(app *App) {
-	fmt.Fprintln(app.Out, "This is a command-driven HCP shell, not a built-in chatbot.")
-	fmt.Fprintln(app.Out, "Type commands at the hcp> prompt. Mutating requests plan first unless you explicitly use --yes.")
+	fmt.Fprintln(app.Out, "This is the HCP command center. Type commands directly, or configure AI with `setup model` for natural-language chat.")
+	fmt.Fprintln(app.Out, "Mutating requests plan first unless you explicitly use --yes.")
 	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "Safe next commands:")
 	fmt.Fprintln(app.Out, "  status")
@@ -259,9 +248,9 @@ func printShellAIGuide(app *App, args []string) {
 	}
 	if mode == "providers" || mode == "status" {
 		fmt.Fprintln(app.Out, "AI modes:")
-		fmt.Fprintln(app.Out, "  ChatGPT subscription: use Codex CLI as the AI layer, then have Codex run hcp.")
-		fmt.Fprintln(app.Out, "  API providers: OpenRouter, Anthropic, and OpenAI API support is tracked for embedded shell chat.")
-		fmt.Fprintln(app.Out, "  Linear: ENG-285 covers provider config; ENG-286 covers embedded AI chat.")
+		fmt.Fprintln(app.Out, "  ChatGPT subscription: hcp crm calls local Codex CLI after `codex --login`.")
+		fmt.Fprintln(app.Out, "  OpenRouter, Anthropic, OpenAI: hcp crm calls provider APIs directly with local credentials.")
+		fmt.Fprintln(app.Out, "  Ollama: hcp crm calls the local Ollama API.")
 		return
 	}
 	fmt.Fprintln(app.Out, "ChatGPT subscription mode uses Codex CLI, not an hcp API key.")
@@ -274,22 +263,97 @@ func printShellAIGuide(app *App, args []string) {
 	fmt.Fprintln(app.Out, "  codex --login")
 	fmt.Fprintln(app.Out, "  # choose Sign in with ChatGPT")
 	fmt.Fprintln(app.Out)
-	fmt.Fprintln(app.Out, "Then open Codex in any terminal where hcp is installed and ask:")
-	fmt.Fprintln(app.Out, "  Use the hcp CLI to verify auth and list my first 5 Housecall Pro customers as JSON. Do not modify anything.")
-	fmt.Fprintln(app.Out, "  Use hcp to plan creating a lead source called Spring Mailer. Show the plan only; do not execute it.")
-	fmt.Fprintln(app.Out, "  Use hcp to sync customers and leads, then summarize stale opportunities. Do not modify anything.")
+	fmt.Fprintln(app.Out, "Then stay inside hcp crm and type natural-language requests at hcp>.")
+	fmt.Fprintln(app.Out, "  Show my first 5 customers as JSON.")
+	fmt.Fprintln(app.Out, "  Plan creating a lead source called Spring Mailer.")
+	fmt.Fprintln(app.Out, "  Sync customers and leads, then summarize stale opportunities.")
 	fmt.Fprintln(app.Out)
-	fmt.Fprintln(app.Out, "For OpenRouter, Anthropic, or OpenAI API keys, embedded shell chat is planned separately.")
+	fmt.Fprintln(app.Out, "All model-proposed HCP actions still run through hcp safety gates.")
 }
 
 func isKnownShellCommand(command string) bool {
 	switch command {
-	case "ai", "api", "auth", "brief", "cash", "completion", "customers", "estimates", "funnel",
-		"help", "invoices", "jobs", "leads", "marketing", "mcp", "report", "safety", "setup", "sync", "tech":
+	case "ai", "api", "audit", "auth", "brief", "cash", "completion", "customers", "doctor", "estimates", "funnel",
+		"help", "invoices", "jobs", "leads", "marketing", "mcp", "onboarding", "report", "safety", "setup", "sync", "tech":
 		return true
 	default:
 		return false
 	}
+}
+
+func runShellAI(app *App, line string) (bool, error) {
+	cfg, _, err := app.loadConfig()
+	if err != nil {
+		return false, err
+	}
+	if cfg.AI.Provider == "" || cfg.AI.Skipped {
+		return false, nil
+	}
+	decision, err := callAI(context.Background(), cfg, line)
+	if err != nil {
+		return true, err
+	}
+	switch decision.Type {
+	case "answer":
+		fmt.Fprintln(app.Out, decision.Text)
+		return true, nil
+	case "command":
+		if decision.Explanation != "" {
+			fmt.Fprintf(app.Out, "%s\n", decision.Explanation)
+		}
+		args, err := splitShellLine(decision.Command)
+		if err != nil {
+			return true, err
+		}
+		args = normalizeAICommandArgs(args)
+		if len(args) == 0 {
+			return true, fmt.Errorf("AI returned an empty command")
+		}
+		if err := runShellArgs(app, args); err != nil {
+			return true, err
+		}
+		return true, nil
+	default:
+		return true, fmt.Errorf("unsupported AI decision %q", decision.Type)
+	}
+}
+
+func normalizeAICommandArgs(args []string) []string {
+	if len(args) > 0 && args[0] == "hcp" {
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		return args
+	}
+	if isLikelyMutatingShellLine(strings.Join(args, " ")) && !hasShellFlag(args, "--plan") && !hasShellFlag(args, "--dry-run") && !hasShellFlag(args, "--yes") {
+		args = append(args, "--plan")
+	}
+	return args
+}
+
+func runShellArgs(app *App, args []string) error {
+	if err := recordShellSafetyAttempt(app, args); err != nil {
+		return err
+	}
+	var out bytes.Buffer
+	child := newRootCommand(app.Version, &out, app.Err)
+	if strings.TrimSpace(app.ConfigPath) != "" {
+		args = append([]string{"--config", app.ConfigPath}, args...)
+	}
+	if strings.TrimSpace(app.BaseURL) != "" {
+		args = append([]string{"--base-url", app.BaseURL}, args...)
+	}
+	child.SetArgs(args)
+	if err := child.Execute(); err != nil {
+		return err
+	}
+	if out.Len() > 0 {
+		_, _ = app.Out.Write(out.Bytes())
+		if !bytes.HasSuffix(out.Bytes(), []byte("\n")) {
+			fmt.Fprintln(app.Out)
+		}
+	}
+	return nil
 }
 
 func isActionableShellLine(line string) bool {

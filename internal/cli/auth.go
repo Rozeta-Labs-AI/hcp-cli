@@ -24,6 +24,20 @@ func newAuthCommand(app *App) *cobra.Command {
 	return cmd
 }
 
+func newAccountCommand(app *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "account",
+		Short: "Connect and inspect the Housecall Pro account",
+	}
+	auth := newAuthLoginCommand(app)
+	auth.Use = "auth"
+	auth.Short = "Connect a Housecall Pro account"
+	cmd.AddCommand(auth)
+	cmd.AddCommand(newAuthStatusCommand(app))
+	cmd.AddCommand(newAuthDoctorCommand(app))
+	return cmd
+}
+
 func newAuthLoginCommand(app *App) *cobra.Command {
 	var apiKey string
 	var companyID string

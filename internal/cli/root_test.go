@@ -23,6 +23,7 @@ func TestRootHelpRegistersCommandGroups(t *testing.T) {
 
 	help := out.String()
 	for _, want := range []string{
+		"account",
 		"auth",
 		"doctor",
 		"onboarding",
@@ -73,10 +74,28 @@ func TestOnboardingPrintsFreshInstallPath(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"go install", "hcp auth login", "hcp doctor", "hcp crm", "codex --login"} {
+	for _, want := range []string{"go install", "Go is just the installer", "hcp account auth", "hcp setup model", "hcp crm"} {
 		if !bytes.Contains(out.Bytes(), []byte(want)) {
 			t.Fatalf("onboarding output missing %q:\n%s", want, out.String())
 		}
+	}
+}
+
+func TestAccountAuthStoresAPIKey(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	var out bytes.Buffer
+	cmd := newRootCommand("test", &out, &out)
+	cmd.SetArgs([]string{"--config", configPath, "--json", "account", "auth", "--api-key", "hcp-test-key"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := payload["api_key"], "****-key"; got != want {
+		t.Fatalf("masked api key = %v, want %s", got, want)
 	}
 }
 

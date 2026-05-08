@@ -36,6 +36,27 @@ func TestSetupModelPickerStoresChatGPTChoice(t *testing.T) {
 	}
 }
 
+func TestSetupModelStoresAPIProviderKey(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	var out bytes.Buffer
+	cmd := newRootCommand("test", &out, &out)
+	cmd.SetArgs([]string{"--config", configPath, "setup", "model", "--provider", "openrouter", "--model", "openrouter/auto", "--api-key", "router-secret"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := cfg.AI.Provider, "openrouter"; got != want {
+		t.Fatalf("provider = %q, want %q", got, want)
+	}
+	if got, want := cfg.AI.APIKey, "router-secret"; got != want {
+		t.Fatalf("api key = %q, want stored key", got)
+	}
+}
+
 func TestSetupModelNoInputPrintsPickerWithoutBlocking(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.json")
 	var out bytes.Buffer

@@ -323,16 +323,16 @@ Branded interactive shell:
 - Inside the shell, normal commands run without the leading `hcp`.
 - `status` maps to `auth doctor --endpoint /company`.
 - `exit`, `quit`, `:q`, and `clear` are supported.
-- Unknown natural-language-style lines route through `hcp api`.
+- Unknown natural-language-style lines route through configured embedded AI first when AI is configured, otherwise through `hcp api`.
 - Unknown mutating lines default to `--plan`, not execution.
-- `ai chatgpt`, `ai codex`, and `/ai chatgpt` explain the ChatGPT subscription path through Codex CLI.
-- `ai providers` explains that OpenRouter, Anthropic, and OpenAI API-key embedded chat are separate future issues.
+- `ai chatgpt`, `ai codex`, and `/ai chatgpt` explain the ChatGPT subscription path through the local Codex CLI bridge.
+- `ai providers` explains ChatGPT/Codex, OpenRouter, Anthropic, OpenAI, and Ollama provider modes.
 
 AI integration roadmap:
 
 - `ENG-284`: ChatGPT subscription guidance through Codex in `hcp shell`.
 - `ENG-288`: AI model setup picker for `hcp crm` onboarding.
-- `ENG-285`: Embedded AI provider configuration for OpenRouter, Anthropic, and OpenAI API keys.
+- `ENG-285`: Embedded AI provider configuration for ChatGPT/Codex, OpenRouter, Anthropic, OpenAI, and Ollama.
 - `ENG-286`: Embedded AI chat loop with guarded `hcp` tool execution.
 
 AI model setup:
@@ -341,6 +341,7 @@ AI model setup:
 - First interactive `hcp crm` run offers setup if no AI assistant preference is configured.
 - Provider choices are ChatGPT subscription via Codex, OpenRouter API key, Anthropic API key, OpenAI API key, Ollama local model, and skip.
 - `hcp ai status` reports configured mode without exposing secrets.
+- Conversational `hcp crm` lines can now produce model-proposed commands, which still execute through normal planning, confirmation, audit, and safety guards.
 
 Cleanup:
 
