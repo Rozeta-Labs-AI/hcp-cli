@@ -58,6 +58,8 @@ func newRootCommand(version string, out io.Writer, errOut io.Writer) *cobra.Comm
 	root.PersistentFlags().BoolVar(&app.NoInput, "no-input", false, "fail instead of prompting for input")
 
 	root.AddCommand(newAuthCommand(app))
+	root.AddCommand(newDoctorCommand(app))
+	root.AddCommand(newOnboardingCommand(app))
 	root.AddCommand(newAPICommand(app))
 	root.AddCommand(newSyncCommand(app))
 	root.AddCommand(newResourceCommand(app, "customers", "customer", "/customers"))

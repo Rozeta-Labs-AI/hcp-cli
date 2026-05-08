@@ -127,13 +127,13 @@ hcp auth login --api-key <your-housecall-pro-api-key>
 Then validate:
 
 ```bash
-hcp auth doctor
+hcp doctor
 ```
 
 To validate against the company endpoint:
 
 ```bash
-hcp auth doctor --endpoint /company
+hcp doctor --endpoint /company
 ```
 
 ### Use Environment Variables Instead
@@ -143,7 +143,7 @@ If you do not want to store credentials in the local config file:
 ```bash
 export HOUSECALL_PRO_API_KEY=<your-housecall-pro-api-key>
 export HCP_BASE_URL=https://api.housecallpro.com
-hcp auth doctor
+hcp doctor
 ```
 
 ### Company ID Note
@@ -152,11 +152,17 @@ Leave company id blank unless your Housecall Pro API key specifically requires i
 
 ## Quick Start
 
+For a guided fresh-computer setup checklist:
+
+```bash
+hcp onboarding
+```
+
 Check auth:
 
 ```bash
 hcp auth status
-hcp auth doctor
+hcp doctor
 ```
 
 List available API operations:

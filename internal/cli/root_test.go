@@ -24,6 +24,8 @@ func TestRootHelpRegistersCommandGroups(t *testing.T) {
 	help := out.String()
 	for _, want := range []string{
 		"auth",
+		"doctor",
+		"onboarding",
 		"sync",
 		"customers",
 		"jobs",
@@ -43,6 +45,37 @@ func TestRootHelpRegistersCommandGroups(t *testing.T) {
 	} {
 		if !bytes.Contains([]byte(help), []byte(want)) {
 			t.Fatalf("help output does not include %q:\n%s", want, help)
+		}
+	}
+}
+
+func TestTopLevelDoctorOfflineRequiresAPIKey(t *testing.T) {
+	cmd := NewRootCommand("test")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--config", t.TempDir() + "/missing.json", "doctor", "--offline"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected missing API key error")
+	}
+	if got, want := ExitCode(err), exitAuth; got != want {
+		t.Fatalf("exit code = %d, want %d", got, want)
+	}
+}
+
+func TestOnboardingPrintsFreshInstallPath(t *testing.T) {
+	var out bytes.Buffer
+	cmd := newRootCommand("test", &out, &out)
+	cmd.SetArgs([]string{"onboarding"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"go install", "hcp auth login", "hcp doctor", "hcp crm", "codex --login"} {
+		if !bytes.Contains(out.Bytes(), []byte(want)) {
+			t.Fatalf("onboarding output missing %q:\n%s", want, out.String())
 		}
 	}
 }

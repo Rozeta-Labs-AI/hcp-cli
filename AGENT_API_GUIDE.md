@@ -145,7 +145,7 @@ Before live API work:
 
 ```bash
 hcp auth status
-hcp auth doctor
+hcp doctor
 ```
 
 If no API key is configured, use:

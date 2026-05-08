@@ -50,6 +50,7 @@ Help:
 
 ```bash
 ./bin/hcp --help
+./bin/hcp onboarding
 ./bin/hcp customers list --help
 ```
 
@@ -58,8 +59,8 @@ Auth/config:
 ```bash
 ./bin/hcp auth login --api-key <housecall-pro-api-key>
 ./bin/hcp auth status
-./bin/hcp auth doctor --offline
-./bin/hcp auth doctor
+./bin/hcp doctor --offline
+./bin/hcp doctor
 ```
 
 Sync:
