@@ -50,7 +50,7 @@ func newOnboardingCommand(app *App) *cobra.Command {
 			fmt.Fprintln(app.Out, "ChatGPT subscription path:")
 			fmt.Fprintln(app.Out, "   Install Codex, run `codex --login`, choose ChatGPT sign-in, then ask Codex to use the hcp CLI.")
 			fmt.Fprintln(app.Out)
-			fmt.Fprintln(app.Out, "Private GitHub repo installs may also need:")
+			fmt.Fprintln(app.Out, "If the GitHub repo is made private again later, also run:")
 			fmt.Fprintln(app.Out, "   gh auth login")
 			fmt.Fprintln(app.Out, "   go env -w GOPRIVATE=github.com/Rozeta-Labs-AI/*")
 			return nil

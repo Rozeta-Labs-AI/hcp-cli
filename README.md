@@ -40,7 +40,6 @@ The intended agent workflow is:
 Prerequisites:
 
 - Go 1.22 or newer.
-- Access to this private GitHub repository.
 - A Housecall Pro API key for the user's own account.
 
 Install:
@@ -61,7 +60,7 @@ Verify:
 hcp --help
 ```
 
-For private repository installs, your machine must be authenticated with GitHub. A reliable setup is:
+If the repository is made private again later, authenticate with GitHub first:
 
 ```bash
 gh auth login
