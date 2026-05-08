@@ -162,17 +162,43 @@ func maybePromptAISetup(app *App, in *bufio.Reader) {
 }
 
 func printAIModelPicker(app *App) {
+	fmt.Fprint(app.Out, setupModelLogo)
 	fmt.Fprintln(app.Out, "AI Assistant Setup")
 	fmt.Fprintln(app.Out)
-	fmt.Fprintln(app.Out, "Choose how you want hcp crm to think:")
+	fmt.Fprintln(app.Out, "Choose how you want hcp crm to think.")
+	fmt.Fprintln(app.Out, "HCP auth remains local; model credentials are stored only in your local config.")
+	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "  1. ChatGPT subscription via Codex")
+	fmt.Fprintln(app.Out, "     Use your ChatGPT Plus/Pro login through Codex CLI. No OpenAI API key stored in hcp.")
+	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "  2. OpenRouter API key")
+	fmt.Fprintln(app.Out, "     Model catalog path for Claude, OpenAI, Gemini, Llama, and other OpenRouter-hosted models.")
+	fmt.Fprintln(app.Out, "     Default: openrouter/auto")
+	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "  3. Anthropic API key")
+	fmt.Fprintln(app.Out, "     Direct Claude API path for teams standardizing on Anthropic.")
+	fmt.Fprintln(app.Out, "     Default: claude-sonnet")
+	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "  4. OpenAI API key")
+	fmt.Fprintln(app.Out, "     Direct OpenAI API path for API-billed usage.")
+	fmt.Fprintln(app.Out, "     Default: gpt-4.1")
+	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "  5. Ollama local model")
+	fmt.Fprintln(app.Out, "     Local model path for offline/dev workflows.")
+	fmt.Fprintln(app.Out, "     Default: llama3.1")
+	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "  6. Skip for now")
 	fmt.Fprintln(app.Out)
 }
+
+const setupModelLogo = `
+██╗  ██╗ ██████╗██████╗     ███╗   ███╗ ██████╗ ██████╗ ███████╗██╗
+██║  ██║██╔════╝██╔══██╗    ████╗ ████║██╔═══██╗██╔══██╗██╔════╝██║
+███████║██║     ██████╔╝    ██╔████╔██║██║   ██║██║  ██║█████╗  ██║
+██╔══██║██║     ██╔═══╝     ██║╚██╔╝██║██║   ██║██║  ██║██╔══╝  ██║
+██║  ██║╚██████╗██║         ██║ ╚═╝ ██║╚██████╔╝██████╔╝███████╗███████╗
+╚═╝  ╚═╝ ╚═════╝╚═╝         ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
+`
 
 func promptAIModelChoice(app *App, reader *bufio.Reader) (aiSetupChoice, error) {
 	printAIModelPicker(app)

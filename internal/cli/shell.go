@@ -76,34 +76,73 @@ func runShell(app *App, in io.Reader) error {
 }
 
 func printShellBanner(app *App) {
+	fmt.Fprintln(app.Out, "HOUSECALL PRO")
 	fmt.Fprint(app.Out, shellLogo)
+	fmt.Fprintf(app.Out, "hcp-cli %s  |  Housecall Pro Command Center\n", app.Version)
+	fmt.Fprintln(app.Out, strings.Repeat("-", 72))
 	cfg, path, err := app.loadConfig()
 	if err != nil {
-		fmt.Fprintf(app.Out, "Config: unavailable (%v)\n", err)
+		fmt.Fprintf(app.Out, "Config      unavailable (%v)\n", err)
 	} else {
-		fmt.Fprintf(app.Out, "Config: %s\n", path)
-		fmt.Fprintf(app.Out, "Base URL: %s\n", cfg.BaseURL)
+		fmt.Fprintf(app.Out, "Config      %s\n", path)
+		fmt.Fprintf(app.Out, "Base URL    %s\n", cfg.BaseURL)
 		if cfg.APIKey() != "" {
-			fmt.Fprintln(app.Out, "Auth: configured")
+			fmt.Fprintln(app.Out, "HCP Auth    configured")
 		} else {
-			fmt.Fprintln(app.Out, "Auth: missing; run auth login --api-key <key>")
+			fmt.Fprintln(app.Out, "HCP Auth    missing; run auth login --api-key <key>")
+		}
+		if hasAISetup(cfg) {
+			fmt.Fprintf(app.Out, "AI Mode     %s\n", shellAIModeLabel(cfg.AI.Provider, cfg.AI.Skipped))
+		} else if cfg.APIKey() != "" {
+			fmt.Fprintln(app.Out, "AI Mode     not configured; run setup model")
+		} else {
+			fmt.Fprintln(app.Out, "AI Mode     deferred until HCP auth is configured")
 		}
 	}
-	fmt.Fprintln(app.Out, "Mode: safe by default. Mutating API actions require --plan or --yes.")
-	fmt.Fprintln(app.Out, "Try: onboarding | auth login --api-key <key> | status | api list customers --limit 5 --json | setup model | exit")
+	fmt.Fprintln(app.Out, "Safety      plans first; writes require --yes; high-risk writes need tokens")
+	fmt.Fprintln(app.Out)
+	fmt.Fprintln(app.Out, "Tools       api catalog | api examples | sync | reports | audit | safety")
+	fmt.Fprintln(app.Out, "Start       onboarding | auth login --api-key <key> | doctor | crm")
+	fmt.Fprintln(app.Out, "Try         status | api list customers --limit 5 --json | setup model | exit")
 	fmt.Fprintln(app.Out)
 }
 
 const shellLogo = `
-██╗  ██╗ ██████╗██████╗
-██║  ██║██╔════╝██╔══██╗
-███████║██║     ██████╔╝
-██╔══██║██║     ██╔═══╝
-██║  ██║╚██████╗██║
-╚═╝  ╚═╝ ╚═════╝╚═╝
+██╗  ██╗ ██████╗ ██╗   ██╗███████╗███████╗ ██████╗ █████╗ ██╗     ██╗
+██║  ██║██╔═══██╗██║   ██║██╔════╝██╔════╝██╔════╝██╔══██╗██║     ██║
+███████║██║   ██║██║   ██║███████╗█████╗  ██║     ███████║██║     ██║
+██╔══██║██║   ██║██║   ██║╚════██║██╔══╝  ██║     ██╔══██║██║     ██║
+██║  ██║╚██████╔╝╚██████╔╝███████║███████╗╚██████╗██║  ██║███████╗███████╗
+╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝
 
-Housecall Pro Command Center
+██████╗ ██████╗  ██████╗
+██╔══██╗██╔══██╗██╔═══██╗
+██████╔╝██████╔╝██║   ██║
+██╔═══╝ ██╔══██╗██║   ██║
+██║     ██║  ██║╚██████╔╝
+╚═╝     ╚═╝  ╚═╝ ╚═════╝
+
 `
+
+func shellAIModeLabel(provider string, skipped bool) string {
+	if skipped {
+		return "skipped"
+	}
+	switch provider {
+	case "chatgpt":
+		return "ChatGPT subscription via Codex"
+	case "openrouter":
+		return "OpenRouter API"
+	case "anthropic":
+		return "Anthropic API"
+	case "openai":
+		return "OpenAI API"
+	case "ollama":
+		return "Ollama local"
+	default:
+		return "not configured"
+	}
+}
 
 func shouldExitShell(line string) bool {
 	lower := strings.ToLower(strings.TrimSpace(line))

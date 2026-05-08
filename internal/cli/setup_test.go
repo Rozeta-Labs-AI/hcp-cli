@@ -45,8 +45,10 @@ func TestSetupModelNoInputPrintsPickerWithoutBlocking(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "AI Assistant Setup") {
-		t.Fatalf("expected setup picker:\n%s", out.String())
+	for _, want := range []string{"AI Assistant Setup", "OpenRouter API key", "Anthropic API key", "ChatGPT subscription via Codex"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected setup picker to include %q:\n%s", want, out.String())
+		}
 	}
 }
 

@@ -42,8 +42,10 @@ func TestShellBannerIncludesBrand(t *testing.T) {
 	var out bytes.Buffer
 	app := &App{Version: "test", Out: &out, Err: &out, Quiet: false, ConfigPath: "/tmp/missing-hcp-shell-test.json"}
 	printShellBanner(app)
-	if !strings.Contains(out.String(), "Housecall Pro Command Center") {
-		t.Fatalf("banner missing brand:\n%s", out.String())
+	for _, want := range []string{"HOUSE", "PRO", "Housecall Pro Command Center", "Tools", "Start"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("banner missing %q:\n%s", want, out.String())
+		}
 	}
 }
 
