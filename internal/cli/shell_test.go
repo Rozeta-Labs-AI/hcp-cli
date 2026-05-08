@@ -46,3 +46,48 @@ func TestShellBannerIncludesBrand(t *testing.T) {
 		t.Fatalf("banner missing brand:\n%s", out.String())
 	}
 }
+
+func TestShellGuidancePhrasePrintsHelp(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+
+	if err := runShellLine(app, "ok now what"); err != nil {
+		t.Fatal(err)
+	}
+	output := out.String()
+	for _, want := range []string{"command-driven HCP shell", "status", "api get /company --json"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q:\n%s", want, output)
+		}
+	}
+	if errOut.Len() > 0 {
+		t.Fatalf("unexpected stderr: %s", errOut.String())
+	}
+}
+
+func TestShellNonActionableUnknownPrintsHelp(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+
+	if err := runShellLine(app, "tell me a joke"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "not a built-in chatbot") {
+		t.Fatalf("expected guidance output:\n%s", out.String())
+	}
+}
+
+func TestShellActionableUnknownStillRoutesToAPI(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+
+	if err := runShellLine(app, "list customers --limit 1 --json"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `"path": "/customers"`) {
+		t.Fatalf("expected api output:\n%s", out.String())
+	}
+}
