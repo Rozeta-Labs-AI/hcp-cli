@@ -285,17 +285,41 @@ func runShellAI(app *App, line string) (bool, error) {
 	if cfg.AI.Provider == "" || cfg.AI.Skipped {
 		return false, nil
 	}
+	printAIStage(app, "Thinking...")
 	decision, err := callAI(context.Background(), cfg, line)
 	if err != nil {
 		return true, err
 	}
+	if handled, err := runAIDecision(app, decision); handled || err != nil {
+		if err == nil {
+			return true, nil
+		}
+		printAIStage(app, fmt.Sprintf("Command failed: %v", err))
+		printAIStage(app, "Retrying once with the error context...")
+		retry, retryErr := callAI(context.Background(), cfg, aiRetryRequest(line, decision, err))
+		if retryErr != nil {
+			return true, fmt.Errorf("%v; retry failed: %w", err, retryErr)
+		}
+		_, retryErr = runAIDecision(app, retry)
+		return true, retryErr
+	}
+	return true, nil
+}
+
+func printAIStage(app *App, message string) {
+	if !app.Quiet {
+		fmt.Fprintf(app.Out, "... %s\n", message)
+	}
+}
+
+func runAIDecision(app *App, decision aiDecision) (bool, error) {
 	switch decision.Type {
 	case "answer":
 		fmt.Fprintln(app.Out, decision.Text)
 		return true, nil
 	case "command":
 		if decision.Explanation != "" {
-			fmt.Fprintf(app.Out, "%s\n", decision.Explanation)
+			printAIStage(app, decision.Explanation)
 		}
 		args, err := splitShellLine(decision.Command)
 		if err != nil {
@@ -305,13 +329,29 @@ func runShellAI(app *App, line string) (bool, error) {
 		if len(args) == 0 {
 			return true, fmt.Errorf("AI returned an empty command")
 		}
+		printAIStage(app, "Proposed command: hcp "+strings.Join(args, " "))
+		printAIStage(app, "Running command...")
 		if err := runShellArgs(app, args); err != nil {
 			return true, err
 		}
+		printAIStage(app, "Done.")
 		return true, nil
 	default:
 		return true, fmt.Errorf("unsupported AI decision %q", decision.Type)
 	}
+}
+
+func aiRetryRequest(original string, previous aiDecision, err error) string {
+	return fmt.Sprintf(`The previous hcp command failed. Propose one corrected hcp CLI command or explain why it cannot be done.
+
+Original user request:
+%s
+
+Previous proposed command:
+%s
+
+Command error:
+%v`, original, previous.Command, err)
 }
 
 func normalizeAICommandArgs(args []string) []string {

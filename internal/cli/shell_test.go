@@ -186,16 +186,55 @@ func TestShellUsesConfiguredAIForConversationalLine(t *testing.T) {
 	}
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: configPath}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: false, ConfigPath: configPath}
 
 	if err := runShellLine(app, "show my first 5 customers"); err != nil {
 		t.Fatal(err)
 	}
 	output := out.String()
-	for _, want := range []string{"Listing customers.", `"path": "/customers"`} {
+	for _, want := range []string{"... Thinking...", "... Listing customers.", "... Proposed command: hcp api list customers", "... Running command...", `"path": "/customers"`, "... Done."} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("output missing %q:\n%s", want, output)
 		}
+	}
+}
+
+func TestShellAIRetriesAfterBadCommand(t *testing.T) {
+	previous := callAI
+	defer func() { callAI = previous }()
+	calls := 0
+	callAI = func(ctx context.Context, cfg config.Config, userRequest string) (aiDecision, error) {
+		calls++
+		if calls == 1 {
+			return aiDecision{Type: "command", Command: "api list customers --bad-flag", Explanation: "Trying the customer list."}, nil
+		}
+		if !strings.Contains(userRequest, "unknown flag") {
+			t.Fatalf("retry request missing command error: %q", userRequest)
+		}
+		return aiDecision{Type: "answer", Text: "I hit an invalid flag and corrected course."}, nil
+	}
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	cfg := config.Default()
+	cfg.AI.Provider = "chatgpt"
+	cfg.AI.Model = "codex-chatgpt"
+	if err := config.Save(configPath, cfg); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: false, ConfigPath: configPath}
+
+	if err := runShellLine(app, "show customers"); err != nil {
+		t.Fatal(err)
+	}
+	output := out.String()
+	for _, want := range []string{"... Command failed:", "... Retrying once with the error context...", "I hit an invalid flag"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q:\n%s", want, output)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls = %d, want 2", calls)
 	}
 }
 
