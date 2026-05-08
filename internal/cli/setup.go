@@ -2,9 +2,11 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -17,6 +19,11 @@ type aiSetupChoice struct {
 	Model    string
 	Skipped  bool
 }
+
+var (
+	codexLoginStatusFunc   = codexLoginStatus
+	runCodexDeviceAuthFunc = runCodexDeviceAuth
+)
 
 func newSetupCommand(app *App) *cobra.Command {
 	cmd := &cobra.Command{
@@ -58,7 +65,7 @@ func newAICommand(app *App) *cobra.Command {
 			fmt.Fprintf(app.Out, "AI provider: %s\n", cfg.AI.Provider)
 			fmt.Fprintf(app.Out, "AI model: %s\n", cfg.AI.Model)
 			if cfg.AI.Provider == "chatgpt" {
-				fmt.Fprintln(app.Out, "ChatGPT subscription path: hcp will call local Codex CLI; run `codex --login` first.")
+				fmt.Fprintln(app.Out, "ChatGPT subscription path: hcp uses the local Codex auth session; run `hcp setup model` to connect or refresh it.")
 			}
 			if env := aiProviderEnvName(cfg.AI.Provider); env != "" {
 				fmt.Fprintf(app.Out, "AI API key available: %t\n", configuredAIKey(cfg.AI) != "")
@@ -93,7 +100,7 @@ func newSetupModelCommand(app *App) *cobra.Command {
 			if choice.Provider == "" && !choice.Skipped {
 				if app.NoInput {
 					printAIModelPicker(app)
-					fmt.Fprintln(app.Out, "Run again with --provider chatgpt, openrouter, anthropic, openai, ollama, or --skip.")
+					fmt.Fprintln(app.Out, "Run again with --provider chatgpt, openrouter, anthropic, openai, or --skip.")
 					return nil
 				}
 				reader = bufio.NewReader(cmd.InOrStdin())
@@ -113,9 +120,14 @@ func newSetupModelCommand(app *App) *cobra.Command {
 				cfg.AI.APIKey = strings.TrimSpace(apiKey)
 			}
 			if choice.Provider == "chatgpt" {
+				if !app.NoInput {
+					if err := ensureChatGPTSubscriptionAuth(app, cmd.InOrStdin()); err != nil {
+						return err
+					}
+				}
 				cfg.AI.APIKey = ""
 			}
-			if choice.Provider != "" && choice.Provider != "chatgpt" && choice.Provider != "ollama" && cfg.AI.APIKey == "" && !choice.Skipped && !app.NoInput {
+			if choice.Provider != "" && choice.Provider != "chatgpt" && cfg.AI.APIKey == "" && !choice.Skipped && !app.NoInput {
 				fmt.Fprintf(app.Out, "Paste %s API key, or press Enter to use environment variable later: ", strings.ToUpper(choice.Provider))
 				if reader == nil {
 					reader = bufio.NewReader(cmd.InOrStdin())
@@ -133,7 +145,7 @@ func newSetupModelCommand(app *App) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&provider, "provider", "", "AI provider: chatgpt, openrouter, anthropic, openai, ollama")
+	cmd.Flags().StringVar(&provider, "provider", "", "AI provider: chatgpt, openrouter, anthropic, openai")
 	cmd.Flags().StringVar(&model, "model", "", "model name or provider-specific model slug")
 	cmd.Flags().StringVar(&apiKey, "api-key", "", "API key for API-based providers; not used for ChatGPT subscription via Codex")
 	cmd.Flags().BoolVar(&skip, "skip", false, "skip AI setup for now")
@@ -157,7 +169,7 @@ func maybePromptAISetup(app *App, in *bufio.Reader) {
 	}
 	fmt.Fprintln(app.Out, "No AI assistant mode configured.")
 	printAIModelPicker(app)
-	fmt.Fprint(app.Out, "Choose provider [1-6, Enter to skip]: ")
+	fmt.Fprint(app.Out, "Choose provider [1-5, Enter to skip]: ")
 	choice, err := readAIModelChoice(in)
 	if err != nil {
 		fmt.Fprintf(app.Err, "AI setup skipped: %v\n", err)
@@ -199,11 +211,7 @@ func printAIModelPicker(app *App) {
 	fmt.Fprintln(app.Out, "     Direct OpenAI API path for API-billed usage.")
 	fmt.Fprintln(app.Out, "     Default: gpt-4.1")
 	fmt.Fprintln(app.Out)
-	fmt.Fprintln(app.Out, "  5. Ollama local model")
-	fmt.Fprintln(app.Out, "     Local model path for offline/dev workflows.")
-	fmt.Fprintln(app.Out, "     Default: llama3.1")
-	fmt.Fprintln(app.Out)
-	fmt.Fprintln(app.Out, "  6. Skip for now")
+	fmt.Fprintln(app.Out, "  5. Skip for now")
 	fmt.Fprintln(app.Out)
 }
 
@@ -218,7 +226,7 @@ const setupModelLogo = `
 
 func promptAIModelChoice(app *App, reader *bufio.Reader) (aiSetupChoice, error) {
 	printAIModelPicker(app)
-	fmt.Fprint(app.Out, "Choose provider [1-6]: ")
+	fmt.Fprint(app.Out, "Choose provider [1-5]: ")
 	return readAIModelChoice(reader)
 }
 
@@ -242,8 +250,6 @@ func readAIModelChoice(reader *bufio.Reader) (aiSetupChoice, error) {
 		case 4:
 			return aiSetupChoice{Provider: "openai", Model: "gpt-4.1"}, nil
 		case 5:
-			return aiSetupChoice{Provider: "ollama", Model: "llama3.1"}, nil
-		case 6:
 			return aiSetupChoice{Skipped: true}, nil
 		}
 	}
@@ -264,8 +270,6 @@ func normalizeAIProvider(value string) string {
 		return "anthropic"
 	case "openai":
 		return "openai"
-	case "ollama", "local":
-		return "ollama"
 	default:
 		return ""
 	}
@@ -281,8 +285,6 @@ func defaultModelForProvider(provider string) string {
 		return "claude-sonnet"
 	case "openai":
 		return "gpt-4.1"
-	case "ollama":
-		return "llama3.1"
 	default:
 		return ""
 	}
@@ -298,13 +300,63 @@ func printAISetupResult(app *App, ai config.AIConfig) {
 		fmt.Fprintf(app.Out, "Model: %s\n", ai.Model)
 	}
 	if ai.Provider == "chatgpt" {
-		fmt.Fprintln(app.Out, "Next: run `codex --login` and choose Sign in with ChatGPT. hcp crm will call Codex inside this same shell.")
+		fmt.Fprintln(app.Out, "ChatGPT subscription is connected through the local Codex auth session. hcp crm will call it inside this same shell.")
 		return
 	}
-	if ai.Provider != "" && ai.APIKey == "" && ai.Provider != "ollama" {
+	if ai.Provider != "" && ai.APIKey == "" {
 		envName := aiProviderEnvName(ai.Provider)
 		fmt.Fprintf(app.Out, "Next: set %s or rerun setup with --api-key.\n", envName)
 	}
+}
+
+func ensureChatGPTSubscriptionAuth(app *App, in io.Reader) error {
+	status, err := codexLoginStatusFunc()
+	if err == nil && strings.Contains(strings.ToLower(status), "logged in") {
+		fmt.Fprintln(app.Out, "ChatGPT subscription auth: already connected through Codex.")
+		return nil
+	}
+	fmt.Fprintln(app.Out, "Signing in to ChatGPT subscription mode...")
+	fmt.Fprintln(app.Out, "HCP will open the OpenAI Codex device auth flow here and keep you inside hcp setup.")
+	fmt.Fprintln(app.Out)
+	if err := runCodexDeviceAuthFunc(app, in); err != nil {
+		return err
+	}
+	status, err = codexLoginStatusFunc()
+	if err != nil {
+		return fmt.Errorf("could not verify ChatGPT subscription auth after login: %w", err)
+	}
+	if !strings.Contains(strings.ToLower(status), "logged in") {
+		return fmt.Errorf("ChatGPT subscription auth did not complete; run setup model again")
+	}
+	fmt.Fprintln(app.Out, "ChatGPT subscription auth: connected.")
+	return nil
+}
+
+func codexLoginStatus() (string, error) {
+	cmd := exec.Command("codex", "login", "status")
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errOut
+	if err := cmd.Run(); err != nil {
+		detail := strings.TrimSpace(errOut.String())
+		if detail == "" {
+			detail = err.Error()
+		}
+		return "", fmt.Errorf("%s", detail)
+	}
+	return out.String() + "\n" + errOut.String(), nil
+}
+
+func runCodexDeviceAuth(app *App, in io.Reader) error {
+	cmd := exec.Command("codex", "login", "--device-auth")
+	cmd.Stdin = in
+	cmd.Stdout = app.Out
+	cmd.Stderr = app.Err
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ChatGPT subscription login failed: %w", err)
+	}
+	return nil
 }
 
 func aiStatusPayload(cfg config.Config) map[string]any {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,6 +13,19 @@ import (
 )
 
 func TestSetupModelPickerStoresChatGPTChoice(t *testing.T) {
+	previousStatus := codexLoginStatusFunc
+	previousAuth := runCodexDeviceAuthFunc
+	defer func() {
+		codexLoginStatusFunc = previousStatus
+		runCodexDeviceAuthFunc = previousAuth
+	}()
+	codexLoginStatusFunc = func() (string, error) {
+		return "Logged in using ChatGPT", nil
+	}
+	runCodexDeviceAuthFunc = func(app *App, in io.Reader) error {
+		t.Fatal("device auth should not run when already logged in")
+		return nil
+	}
 	configPath := filepath.Join(t.TempDir(), "config.json")
 	var out bytes.Buffer
 	cmd := newRootCommand("test", &out, &out)
@@ -31,8 +45,8 @@ func TestSetupModelPickerStoresChatGPTChoice(t *testing.T) {
 	if cfg.AI.APIKey != "" {
 		t.Fatal("chatgpt setup should not store an api key")
 	}
-	if !strings.Contains(out.String(), "codex --login") {
-		t.Fatalf("expected Codex guidance:\n%s", out.String())
+	if !strings.Contains(out.String(), "already connected through Codex") {
+		t.Fatalf("expected connected Codex status:\n%s", out.String())
 	}
 }
 
@@ -56,6 +70,54 @@ func TestSetupModelStoresAPIProviderKey(t *testing.T) {
 		t.Fatalf("api key = %q, want stored key", got)
 	}
 }
+
+func TestSetupModelChatGPTRunsDeviceAuthWhenMissing(t *testing.T) {
+	previousStatus := codexLoginStatusFunc
+	previousAuth := runCodexDeviceAuthFunc
+	defer func() {
+		codexLoginStatusFunc = previousStatus
+		runCodexDeviceAuthFunc = previousAuth
+	}()
+	statusCalls := 0
+	codexLoginStatusFunc = func() (string, error) {
+		statusCalls++
+		if statusCalls == 1 {
+			return "", errNotLoggedInForTest{}
+		}
+		return "Logged in using ChatGPT", nil
+	}
+	authRan := false
+	runCodexDeviceAuthFunc = func(app *App, in io.Reader) error {
+		authRan = true
+		return nil
+	}
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	var out bytes.Buffer
+	cmd := newRootCommand("test", &out, &out)
+	cmd.SetIn(bytes.NewBufferString("1\n"))
+	cmd.SetArgs([]string{"--config", configPath, "setup", "model"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !authRan {
+		t.Fatal("expected HCP setup to run Codex device auth internally")
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := cfg.AI.Provider, "chatgpt"; got != want {
+		t.Fatalf("provider = %q, want %q", got, want)
+	}
+	if !strings.Contains(out.String(), "Signing in to ChatGPT subscription mode") {
+		t.Fatalf("expected HCP-owned login message:\n%s", out.String())
+	}
+}
+
+type errNotLoggedInForTest struct{}
+
+func (errNotLoggedInForTest) Error() string { return "not logged in" }
 
 func TestSetupModelNoInputPrintsPickerWithoutBlocking(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.json")

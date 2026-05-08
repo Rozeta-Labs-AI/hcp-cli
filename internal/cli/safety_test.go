@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -95,7 +96,7 @@ func TestShellSafetyPolicyBlocksSecondDestructiveAction(t *testing.T) {
 func TestShellBlocksCompoundMutatingLine(t *testing.T) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: filepath.Join(t.TempDir(), "config.json")}
 	err := runShellLine(app, `create lead source and then delete webhook --body '{"name":"Test"}'`)
 	if err == nil {
 		t.Fatal("expected compound shell block")

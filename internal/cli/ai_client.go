@@ -63,8 +63,6 @@ func callConfiguredAI(ctx context.Context, cfg config.Config, userRequest string
 		return callOpenAICompatible(ctx, "https://api.openai.com/v1/chat/completions", configuredAIKey(ai), ai.Model, prompt, nil)
 	case "anthropic":
 		return callAnthropic(ctx, configuredAIKey(ai), ai.Model, prompt)
-	case "ollama":
-		return callOllama(ctx, ai.Model, prompt)
 	default:
 		return aiDecision{}, fmt.Errorf("unsupported AI provider %q", ai.Provider)
 	}
@@ -146,7 +144,7 @@ func callCodexBridge(ctx context.Context, ai config.AIConfig, prompt string) (ai
 		if detail == "" {
 			detail = err.Error()
 		}
-		return aiDecision{}, fmt.Errorf("Codex bridge failed; run `codex --login` and retry: %s", detail)
+		return aiDecision{}, fmt.Errorf("Codex bridge failed; run `hcp setup model` and choose ChatGPT subscription to reconnect: %s", detail)
 	}
 	return parseAIDecision(out.String())
 }
@@ -215,25 +213,6 @@ func callAnthropic(ctx context.Context, apiKey string, model string, prompt stri
 		}
 	}
 	return aiDecision{}, fmt.Errorf("Anthropic returned no text content")
-}
-
-func callOllama(ctx context.Context, model string, prompt string) (aiDecision, error) {
-	body := map[string]any{
-		"model":  defaultIfBlank(model, "llama3.1"),
-		"prompt": prompt,
-		"stream": false,
-	}
-	raw, err := postJSONWithHeaders(ctx, "http://localhost:11434/api/generate", body, nil)
-	if err != nil {
-		return aiDecision{}, err
-	}
-	var response struct {
-		Response string `json:"response"`
-	}
-	if err := json.Unmarshal(raw, &response); err != nil {
-		return aiDecision{}, fmt.Errorf("decode Ollama response: %w", err)
-	}
-	return parseAIDecision(response.Response)
 }
 
 func postJSON(ctx context.Context, endpoint string, apiKey string, body any, extraHeaders map[string]string) ([]byte, error) {

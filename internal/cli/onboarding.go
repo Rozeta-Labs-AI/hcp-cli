@@ -27,7 +27,6 @@ func newOnboardingCommand(app *App) *cobra.Command {
 						{"name": "verify", "command": "hcp doctor"},
 						{"name": "model", "command": "hcp setup model"},
 						{"name": "open_crm", "command": "hcp crm"},
-						{"name": "chatgpt_subscription", "command": "codex --login"},
 					},
 				})
 			}
@@ -54,7 +53,7 @@ func newOnboardingCommand(app *App) *cobra.Command {
 			fmt.Fprintln(app.Out, "   hcp crm")
 			fmt.Fprintln(app.Out)
 			fmt.Fprintln(app.Out, "Then type natural-language requests directly at hcp>.")
-			fmt.Fprintln(app.Out, "For ChatGPT subscription mode, run `codex --login` once before choosing ChatGPT/Codex in setup model.")
+			fmt.Fprintln(app.Out, "For ChatGPT subscription mode, choose ChatGPT in `hcp setup model`; hcp will run the browser/device-code sign-in flow inside setup.")
 			fmt.Fprintln(app.Out)
 			fmt.Fprintln(app.Out, "If the GitHub repo is made private again later, also run:")
 			fmt.Fprintln(app.Out, "   gh auth login")

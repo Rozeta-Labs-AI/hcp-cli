@@ -29,7 +29,7 @@ func TestSplitShellLinePreservesQuotedJSON(t *testing.T) {
 func TestShellRoutesUnknownMutatingLineToAPIPlan(t *testing.T) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: filepath.Join(t.TempDir(), "config.json")}
 
 	if err := runShellLine(app, `create lead source --body '{"name":"Spring Mailer"}'`); err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestShellBannerIncludesBrand(t *testing.T) {
 func TestShellGuidancePhrasePrintsHelp(t *testing.T) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: filepath.Join(t.TempDir(), "config.json")}
 
 	if err := runShellLine(app, "ok now what"); err != nil {
 		t.Fatal(err)
@@ -75,7 +75,7 @@ func TestShellGuidancePhrasePrintsHelp(t *testing.T) {
 func TestShellNonActionableUnknownPrintsHelp(t *testing.T) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: filepath.Join(t.TempDir(), "config.json")}
 
 	if err := runShellLine(app, "tell me a joke"); err != nil {
 		t.Fatal(err)
@@ -88,9 +88,9 @@ func TestShellNonActionableUnknownPrintsHelp(t *testing.T) {
 func TestShellActionableUnknownStillRoutesToAPI(t *testing.T) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: filepath.Join(t.TempDir(), "config.json")}
 
-	if err := runShellLine(app, "list customers --limit 1 --json"); err != nil {
+	if err := runShellLine(app, "list customers --limit 1 --json --plan"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), `"path": "/customers"`) {
@@ -101,13 +101,13 @@ func TestShellActionableUnknownStillRoutesToAPI(t *testing.T) {
 func TestShellAIChatGPTPrintsCodexGuide(t *testing.T) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: filepath.Join(t.TempDir(), "config.json")}
 
 	if err := runShellLine(app, "ai chatgpt"); err != nil {
 		t.Fatal(err)
 	}
 	output := out.String()
-	for _, want := range []string{"ChatGPT subscription mode uses Codex CLI", "codex --login", "Sign in with ChatGPT", "Housecall Pro API"} {
+	for _, want := range []string{"ChatGPT subscription mode uses Codex CLI", "hcp setup model", "ChatGPT subscription via Codex", "Housecall Pro API"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("output missing %q:\n%s", want, output)
 		}
@@ -117,7 +117,7 @@ func TestShellAIChatGPTPrintsCodexGuide(t *testing.T) {
 func TestShellSlashAIChatGPTPrintsCodexGuide(t *testing.T) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: filepath.Join(t.TempDir(), "config.json")}
 
 	if err := runShellLine(app, "/ai chatgpt"); err != nil {
 		t.Fatal(err)
@@ -130,12 +130,12 @@ func TestShellSlashAIChatGPTPrintsCodexGuide(t *testing.T) {
 func TestShellAIProvidersMentionsBacklogIssues(t *testing.T) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true}
+	app := &App{Version: "test", Out: &out, Err: &errOut, Quiet: true, ConfigPath: filepath.Join(t.TempDir(), "config.json")}
 
 	if err := runShellLine(app, "ai providers"); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"OpenRouter", "Anthropic", "Ollama", "local credentials"} {
+	for _, want := range []string{"OpenRouter", "Anthropic", "OpenAI", "local credentials"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("output missing %q:\n%s", want, out.String())
 		}
@@ -156,6 +156,18 @@ func TestShellSetupModelRoutesToSetupCommand(t *testing.T) {
 	}
 }
 
+func TestShellStreamsInteractiveSetupModelCommand(t *testing.T) {
+	if !shouldStreamShellCommand([]string{"setup", "model"}) {
+		t.Fatal("expected setup model to stream output")
+	}
+	if !shouldStreamShellCommand([]string{"account", "auth"}) {
+		t.Fatal("expected account auth to stream output")
+	}
+	if shouldStreamShellCommand([]string{"api", "list", "customers"}) {
+		t.Fatal("expected non-interactive api command to stay buffered")
+	}
+}
+
 func TestShellUsesConfiguredAIForConversationalLine(t *testing.T) {
 	previous := callAI
 	defer func() { callAI = previous }()
@@ -167,8 +179,8 @@ func TestShellUsesConfiguredAIForConversationalLine(t *testing.T) {
 	}
 	configPath := filepath.Join(t.TempDir(), "config.json")
 	cfg := config.Default()
-	cfg.AI.Provider = "ollama"
-	cfg.AI.Model = "llama3.1"
+	cfg.AI.Provider = "chatgpt"
+	cfg.AI.Model = "codex-chatgpt"
 	if err := config.Save(configPath, cfg); err != nil {
 		t.Fatal(err)
 	}

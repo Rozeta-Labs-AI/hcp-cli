@@ -58,7 +58,7 @@ Unknown mutating shell lines default to a plan. Do not execute the follow-up `ap
 
 ### ChatGPT Subscription Mode
 
-ChatGPT Plus/Pro is supported through the local Codex CLI bridge. The user runs `codex --login` once, then selects ChatGPT/Codex in `hcp setup model`.
+ChatGPT Plus/Pro is supported through the local Codex auth/session bridge. The user selects ChatGPT/Codex in `hcp setup model`; hcp owns the browser/device-code sign-in flow and then persists the selected provider.
 
 ```text
 hcp> ai chatgpt

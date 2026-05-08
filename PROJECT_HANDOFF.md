@@ -326,13 +326,13 @@ Branded interactive shell:
 - Unknown natural-language-style lines route through configured embedded AI first when AI is configured, otherwise through `hcp api`.
 - Unknown mutating lines default to `--plan`, not execution.
 - `ai chatgpt`, `ai codex`, and `/ai chatgpt` explain the ChatGPT subscription path through the local Codex CLI bridge.
-- `ai providers` explains ChatGPT/Codex, OpenRouter, Anthropic, OpenAI, and Ollama provider modes.
+- `ai providers` explains ChatGPT/Codex, OpenRouter, Anthropic, and OpenAI provider modes.
 
 AI integration roadmap:
 
 - `ENG-284`: ChatGPT subscription guidance through Codex in `hcp shell`.
 - `ENG-288`: AI model setup picker for `hcp crm` onboarding.
-- `ENG-285`: Embedded AI provider configuration for ChatGPT/Codex, OpenRouter, Anthropic, OpenAI, and Ollama.
+- `ENG-285`: Embedded AI provider configuration for ChatGPT/Codex, OpenRouter, Anthropic, and OpenAI.
 - `ENG-286`: Embedded AI chat loop with guarded `hcp` tool execution.
 
 AI model setup:

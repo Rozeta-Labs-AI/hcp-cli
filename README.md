@@ -270,7 +270,7 @@ export ANTHROPIC_API_KEY=<key>
 export OPENAI_API_KEY=<key>
 ```
 
-ChatGPT subscription mode uses the local Codex CLI bridge. Run `codex --login` once, choose ChatGPT sign-in, then choose ChatGPT/Codex in `setup model`.
+ChatGPT subscription mode uses the local Codex auth/session bridge. Choose ChatGPT in `hcp setup model`; hcp owns the browser/device-code sign-in flow and stores only the selected provider in local hcp config.
 
 Inside the shell, run normal commands without typing the leading `hcp`:
 
@@ -296,7 +296,7 @@ To execute a planned mutating action, run the explicit `api ... --yes` command a
 
 ### ChatGPT Subscription Through Codex
 
-ChatGPT Plus/Pro subscription access is not configured in `hcp` as a raw API key. Use Codex CLI as the local model bridge inside `hcp crm`:
+ChatGPT Plus/Pro subscription access is not configured in `hcp` as a raw API key. hcp uses the local Codex auth/session bridge inside `hcp crm`:
 
 ```text
 ChatGPT Plus/Pro -> Codex CLI -> hcp crm embedded chat -> Housecall Pro API
@@ -311,15 +311,13 @@ hcp> ai chatgpt
 That prints setup instructions and safe starter prompts. The short version:
 
 ```bash
-npm install -g @openai/codex
-codex --login
-# choose Sign in with ChatGPT
+hcp setup model
+# choose ChatGPT subscription via Codex
 ```
 
-Then choose ChatGPT mode:
+Then use ChatGPT mode:
 
 ```text
-hcp> setup model
 hcp> Show my first 5 customers as JSON.
 ```
 

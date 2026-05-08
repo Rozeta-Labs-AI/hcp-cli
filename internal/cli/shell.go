@@ -138,8 +138,6 @@ func shellAIModeLabel(provider string, skipped bool) string {
 		return "Anthropic API"
 	case "openai":
 		return "OpenAI API"
-	case "ollama":
-		return "Ollama local"
 	default:
 		return "not configured"
 	}
@@ -248,9 +246,8 @@ func printShellAIGuide(app *App, args []string) {
 	}
 	if mode == "providers" || mode == "status" {
 		fmt.Fprintln(app.Out, "AI modes:")
-		fmt.Fprintln(app.Out, "  ChatGPT subscription: hcp crm calls local Codex CLI after `codex --login`.")
+		fmt.Fprintln(app.Out, "  ChatGPT subscription: hcp setup model connects the local Codex auth session for you.")
 		fmt.Fprintln(app.Out, "  OpenRouter, Anthropic, OpenAI: hcp crm calls provider APIs directly with local credentials.")
-		fmt.Fprintln(app.Out, "  Ollama: hcp crm calls the local Ollama API.")
 		return
 	}
 	fmt.Fprintln(app.Out, "ChatGPT subscription mode uses Codex CLI, not an hcp API key.")
@@ -259,9 +256,8 @@ func printShellAIGuide(app *App, args []string) {
 	fmt.Fprintln(app.Out, "  ChatGPT Plus/Pro -> Codex CLI -> hcp CLI -> Housecall Pro API")
 	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "Setup:")
-	fmt.Fprintln(app.Out, "  npm install -g @openai/codex")
-	fmt.Fprintln(app.Out, "  codex --login")
-	fmt.Fprintln(app.Out, "  # choose Sign in with ChatGPT")
+	fmt.Fprintln(app.Out, "  hcp setup model")
+	fmt.Fprintln(app.Out, "  # choose ChatGPT subscription via Codex")
 	fmt.Fprintln(app.Out)
 	fmt.Fprintln(app.Out, "Then stay inside hcp crm and type natural-language requests at hcp>.")
 	fmt.Fprintln(app.Out, "  Show my first 5 customers as JSON.")
@@ -336,7 +332,11 @@ func runShellArgs(app *App, args []string) error {
 		return err
 	}
 	var out bytes.Buffer
-	child := newRootCommand(app.Version, &out, app.Err)
+	childOut := io.Writer(&out)
+	if shouldStreamShellCommand(args) {
+		childOut = app.Out
+	}
+	child := newRootCommand(app.Version, childOut, app.Err)
 	if strings.TrimSpace(app.ConfigPath) != "" {
 		args = append([]string{"--config", app.ConfigPath}, args...)
 	}
@@ -354,6 +354,19 @@ func runShellArgs(app *App, args []string) error {
 		}
 	}
 	return nil
+}
+
+func shouldStreamShellCommand(args []string) bool {
+	if len(args) >= 2 && args[0] == "setup" && args[1] == "model" {
+		return true
+	}
+	if len(args) >= 2 && args[0] == "account" && args[1] == "auth" {
+		return true
+	}
+	if len(args) >= 2 && args[0] == "auth" && args[1] == "login" {
+		return true
+	}
+	return false
 }
 
 func isActionableShellLine(line string) bool {
