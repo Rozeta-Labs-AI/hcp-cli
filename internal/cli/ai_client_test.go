@@ -32,7 +32,7 @@ func TestParseAIDecisionAnswerFromMarkdownFence(t *testing.T) {
 
 func TestEmbeddedAIPromptRequiresPlanForWrites(t *testing.T) {
 	prompt := embeddedAIPrompt("create a lead source")
-	for _, want := range []string{"Mutating actions must use --plan", "Return exactly one JSON object", "Do not ask for or reveal API keys"} {
+	for _, want := range []string{"Mutating actions must use --plan", "Return exactly one JSON object", "Do not ask for or reveal API keys", "Do not restate request classifications", "Keep explanations concise and operational"} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing %q:\n%s", want, prompt)
 		}

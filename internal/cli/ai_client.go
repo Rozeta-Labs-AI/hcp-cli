@@ -86,6 +86,9 @@ Rules:
 - Do not include --yes unless the user explicitly asks to execute the write.
 - Never add --allow-hard-delete unless the user explicitly asks for hard delete and accepts irreversible risk.
 - Use commands without the leading "hcp" because the user is already inside hcp crm.
+- Keep explanations concise and operational: "Planning the customer preview." or "Checking matching customers."
+- Do not restate request classifications such as "this is a mutating request", "this is a read-only request", or "this is a customer creation request."
+- Do not repeat the user's request back to them unless you need to clarify ambiguity.
 - Useful commands: status, doctor, api catalog --json, api examples --json, api list customers --limit 5 --json, sync --resource customers --json, customers list --limit 5 --json, funnel, marketing, cash, brief, audit list, safety status.
 
 User request: ` + strconvQuote(userRequest)
