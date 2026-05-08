@@ -33,6 +33,19 @@ hcp api examples --json
 hcp api examples --area estimates --json
 ```
 
+## Interactive Shell
+
+Use `hcp shell` when the user wants a branded command-center experience. Inside the shell, omit the leading `hcp`:
+
+```text
+hcp> status
+hcp> api get /company --json
+hcp> api list customers --limit 5 --json
+hcp> create lead source --body '{"name":"Spring Mailer"}'
+```
+
+Unknown mutating shell lines default to a plan. Do not execute the follow-up `api ... --yes` form unless the user explicitly confirms the action.
+
 ## Read Actions
 
 Examples:

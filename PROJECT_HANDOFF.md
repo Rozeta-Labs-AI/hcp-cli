@@ -297,6 +297,16 @@ Operational write hardening:
 - `hcp api` supports read-back verification with `--verify-get`, `--verify-query`, and `--verify-contains`.
 - Schedule availability writes should not be considered complete unless `GET /company/schedule_availability` confirms the requested windows.
 
+Branded interactive shell:
+
+- `hcp shell` opens a Housecall Pro Command Center prompt.
+- The shell shows a branded ASCII banner plus config/auth/base URL status without exposing secrets.
+- Inside the shell, normal commands run without the leading `hcp`.
+- `status` maps to `auth doctor --endpoint /company`.
+- `exit`, `quit`, `:q`, and `clear` are supported.
+- Unknown natural-language-style lines route through `hcp api`.
+- Unknown mutating lines default to `--plan`, not execution.
+
 Cleanup:
 
 - DELETE attempts against the temporary customer, address, tag, and lead source returned 404.

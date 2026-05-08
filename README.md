@@ -202,6 +202,36 @@ hcp api --method DELETE --path /api/price_book/price_forms/form_uuid --plan
 hcp api --method DELETE --path /api/price_book/price_forms/form_uuid --yes --confirm delete:/api/price_book/price_forms/form_uuid
 ```
 
+## Branded Interactive Shell
+
+For a more dedicated command-center experience, open the interactive shell:
+
+```bash
+hcp shell
+```
+
+You will see the Housecall Pro Command Center banner, local config/auth status, and an `hcp>` prompt.
+
+Inside the shell, run normal commands without typing the leading `hcp`:
+
+```text
+hcp> status
+hcp> api get /company --json
+hcp> api list customers --limit 5 --json
+hcp> sync --resource customers --resource leads --json
+hcp> customers list --limit 5 --json
+hcp> exit
+```
+
+The shell also accepts simple natural-language-style API lines. Unknown mutating requests default to a plan instead of execution:
+
+```text
+hcp> list customers --limit 5 --json
+hcp> create lead source --body '{"name":"Spring Mailer"}'
+```
+
+To execute a planned mutating action, run the explicit `api ... --yes` command after reviewing the plan.
+
 ## Natural-Language And Explicit API Actions
 
 The planner supports common English-style commands:
