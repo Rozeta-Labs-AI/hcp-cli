@@ -41,6 +41,7 @@ func TestRootHelpRegistersCommandGroups(t *testing.T) {
 		"ai",
 		"safety",
 		"setup",
+		"update",
 		"crm",
 		"shell",
 	} {
@@ -74,9 +75,24 @@ func TestOnboardingPrintsFreshInstallPath(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"go install", "Go is just the installer", "hcp account auth", "hcp setup model", "hcp crm"} {
+	for _, want := range []string{"go install", "Go is just the installer", "hcp account auth", "hcp setup model", "hcp crm", "hcp update"} {
 		if !bytes.Contains(out.Bytes(), []byte(want)) {
 			t.Fatalf("onboarding output missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestUpdatePlanPrintsInstallerCommand(t *testing.T) {
+	var out bytes.Buffer
+	cmd := newRootCommand("test", &out, &out)
+	cmd.SetArgs([]string{"update", "--plan"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Update plan", "go install github.com/Rozeta-Labs-AI/hcp-cli/cmd/hcp@latest", "without changing your local hcp config"} {
+		if !bytes.Contains(out.Bytes(), []byte(want)) {
+			t.Fatalf("update plan output missing %q:\n%s", want, out.String())
 		}
 	}
 }

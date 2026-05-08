@@ -77,6 +77,7 @@ func newRootCommand(version string, out io.Writer, errOut io.Writer) *cobra.Comm
 	root.AddCommand(newReportCommand(app))
 	root.AddCommand(newSetupCommand(app))
 	root.AddCommand(newAICommand(app))
+	root.AddCommand(newUpdateCommand(app))
 	root.AddCommand(newAuditCommand(app))
 	root.AddCommand(newSafetyCommand(app))
 	root.AddCommand(newCRMCommand(app))

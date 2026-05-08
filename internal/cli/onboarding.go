@@ -27,6 +27,7 @@ func newOnboardingCommand(app *App) *cobra.Command {
 						{"name": "verify", "command": "hcp doctor"},
 						{"name": "model", "command": "hcp setup model"},
 						{"name": "open_crm", "command": "hcp crm"},
+						{"name": "future_updates", "command": "hcp update"},
 					},
 				})
 			}
@@ -51,6 +52,9 @@ func newOnboardingCommand(app *App) *cobra.Command {
 			fmt.Fprintln(app.Out)
 			fmt.Fprintln(app.Out, "6. Open the branded command center:")
 			fmt.Fprintln(app.Out, "   hcp crm")
+			fmt.Fprintln(app.Out)
+			fmt.Fprintln(app.Out, "Future updates:")
+			fmt.Fprintln(app.Out, "   hcp update")
 			fmt.Fprintln(app.Out)
 			fmt.Fprintln(app.Out, "Then type natural-language requests directly at hcp>.")
 			fmt.Fprintln(app.Out, "For ChatGPT subscription mode, choose ChatGPT in `hcp setup model`; hcp will run the browser/device-code sign-in flow inside setup.")

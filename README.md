@@ -47,6 +47,12 @@ hcp crm
 
 Plain English: Go is just the installer for this CLI. It gives you the global `hcp` command, similar to how npm installs Node-based CLIs.
 
+After the first install, update with:
+
+```bash
+hcp update
+```
+
 ### Option 1: Install From Source With Go
 
 Prerequisites:
